@@ -18,9 +18,15 @@ function App() {
     <div className="app">
       <header>
         <h1>Kaplista & inköpsunderlag</h1>
-        <nav>
+        <nav className="tabs">
           {TABS.map((t) => (
-            <button key={t} type="button" onClick={() => setTab(t)} disabled={t === tab}>
+            <button
+              key={t}
+              type="button"
+              className={t === tab ? 'tab tab-active' : 'tab'}
+              aria-current={t === tab ? 'page' : undefined}
+              onClick={() => setTab(t)}
+            >
               {t}
             </button>
           ))}
