@@ -1,5 +1,5 @@
-"""Kontraktstest för /api/purchase-order. Se docs/plan.md #3 för den riktiga materialbalans-
-kontrollen, som gäller när app.services.cutting_optimizer är klar (FFD, docs/adr.md ADR-2).
+"""Kontraktstest för /api/purchase-order mot riktig FFD-kapoptimering (inkrement 3,
+docs/plan.md #3, docs/adr.md ADR-2).
 """
 
 import pytest
@@ -35,3 +35,38 @@ def test_cut_oid_traceable_to_bom(client):
         for bar in group["bars"]:
             for cut in bar["cuts"]:
                 assert cut["oid"] in bom_oids
+
+
+def test_spliced_segments_sum_to_piece_length(client):
+    """docs/plan.md #3: för skarvade oid, sum(cuts med detta oid.length_mm) == splices.total_length_mm."""
+    order = client.get("/api/purchase-order").json()
+
+    for group in order["groups"]:
+        cuts_by_oid: dict[str, list[float]] = {}
+        for bar in group["bars"]:
+            for cut in bar["cuts"]:
+                cuts_by_oid.setdefault(cut["oid"], []).append(cut["length_mm"])
+
+        for splice in group["splices"]:
+            segment_lengths = cuts_by_oid[splice["oid"]]
+            assert len(segment_lengths) == splice["segment_count"]
+            assert sum(segment_lengths) == pytest.approx(splice["total_length_mm"])
+            assert splice["joint_count"] == splice["segment_count"] - 1
+            assert len(splice["purchase_lengths_mm"]) == splice["segment_count"]
+
+
+def test_splice_count_matches_bom_pieces_over_longest_trade_length(client):
+    """Behov > längsta handelslängden (5400 mm, docs/prd.md §0) ska skarvas, inga andra."""
+    bom_items = client.get("/api/bom").json()["items"]
+    order = client.get("/api/purchase-order").json()
+
+    longest_trade_length_mm = max(
+        bar["purchase_length_mm"] for group in order["groups"] for bar in group["bars"]
+    )
+    expected_spliced = sum(1 for item in bom_items if item["length_mm"] > longest_trade_length_mm)
+
+    assert order["summary"]["spliced_piece_count"] == expected_spliced
+    assert order["summary"]["spliced_piece_count"] > 0
+
+    total_joints = sum(s["joint_count"] for g in order["groups"] for s in g["splices"])
+    assert order["summary"]["total_joints"] == total_joints
