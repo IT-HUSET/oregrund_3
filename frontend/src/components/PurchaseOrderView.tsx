@@ -1,38 +1,37 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { getPurchaseOrder } from '../api/client'
 import { useFetch } from '../api/useFetch'
-import type {
-  Cut,
-  GroupCuttingResult,
-  OptimizationAlgorithm,
-  PurchaseOrderResponse,
-} from '../api/types'
+import type { Cut, GroupCuttingResult, PurchaseOrderResponse } from '../api/types'
 import { type CsvValue, downloadCsv, toCsv } from '../csv'
 import { meters, mm, percent, sek } from '../format'
 
 const ALGORITHM_LABEL = { greedy: 'girig FFD', exact: 'exakt (CP-SAT)' } as const
 
 interface PurchaseOrderViewProps {
+  /** oid valt i 3D-vyn (klick) -- öppnar och scrollar fram raden här. */
+  selectedOid?: string | null
   /** Inkrement 4 (docs/plan.md #4): klick på en kapbit ska highlighta oid i 3D-vyn. */
   onSelectOid?: (oid: string) => void
+  /** oid som hovras i 3D-vyn -- highlightar motsvarande kapbit här. */
+  hoveredOid?: string | null
+  /** Hover över en kapbit här ska highlighta oid i 3D-vyn, omvänd riktning. */
+  onHoverOid?: (oid: string | null) => void
 }
 
 /**
  * Inkrement 3 (docs/plan.md #3): kaplista, spillrapport och inköpsunderlag med CSV-export.
  *
  * Optimeringen körs i backend (docs/adr.md ADR-1/ADR-2) -- här visas och exporteras svaret.
- * Sidladdningen hämtar alltid girig FFD; den exakta lösaren (docs/adr.md ADR-2-tillägget) körs
- * bara på explicit knapptryck, eftersom den tar sekunder till minuter (docs/api-contract.md).
+ * Hämtar girig FFD; den exakta lösaren (docs/adr.md ADR-2-tillägget) finns kvar i backend men
+ * har inget UI-anrop härifrån.
  */
-export function PurchaseOrderView({ onSelectOid }: PurchaseOrderViewProps) {
-  const greedy = useFetch(getPurchaseOrder)
-  const [exact, setExact] = useState<PurchaseOrderResponse | null>(null)
-  const [exactError, setExactError] = useState<string | null>(null)
-  const [running, setRunning] = useState(false)
-  const [elapsedMs, setElapsedMs] = useState(0)
-  const [shown, setShown] = useState<OptimizationAlgorithm>('greedy')
-
-  const data = (shown === 'exact' ? exact : greedy.data) ?? greedy.data
+export function PurchaseOrderView({
+  selectedOid,
+  onSelectOid,
+  hoveredOid,
+  onHoverOid,
+}: PurchaseOrderViewProps) {
+  const { data, loading, error } = useFetch(getPurchaseOrder)
 
   // Störst inköpt materialmängd först -- samma ordning som artikelmatchningen.
   const groups = useMemo(
@@ -40,35 +39,11 @@ export function PurchaseOrderView({ onSelectOid }: PurchaseOrderViewProps) {
     [data],
   )
 
-  // Räknare medan lösaren jobbar: utan den ser en minuts väntan ut som en hängd sida.
-  useEffect(() => {
-    if (!running) return
-    const startedAt = performance.now()
-    const id = setInterval(() => setElapsedMs(performance.now() - startedAt), 200)
-    return () => clearInterval(id)
-  }, [running])
-
-  async function runExact() {
-    setRunning(true)
-    setExactError(null)
-    setElapsedMs(0)
-    try {
-      const result = await getPurchaseOrder('exact')
-      setExact(result)
-      setShown('exact')
-    } catch (err: unknown) {
-      setExactError(err instanceof Error ? err.message : String(err))
-    } finally {
-      setRunning(false)
-    }
-  }
-
-  if (greedy.loading) return <p>Kör kapoptimering...</p>
-  if (greedy.error) return <p role="alert">Kunde inte läsa /api/purchase-order: {greedy.error}</p>
+  if (loading) return <p>Kör kapoptimering...</p>
+  if (error) return <p role="alert">Kunde inte läsa /api/purchase-order: {error}</p>
   if (!data) return null
 
   const { summary } = data
-  const unproven = groups.filter((group) => !group.optimal).length
 
   return (
     <section>
@@ -93,45 +68,6 @@ export function PurchaseOrderView({ onSelectOid }: PurchaseOrderViewProps) {
       </p>
 
       <p className="filter">
-        <button type="button" onClick={() => setShown('greedy')} disabled={shown === 'greedy'}>
-          Girig FFD
-        </button>
-        {exact ? (
-          <button type="button" onClick={() => setShown('exact')} disabled={shown === 'exact'}>
-            Exakt (CP-SAT)
-          </button>
-        ) : (
-          <button type="button" onClick={runExact} disabled={running}>
-            {running
-              ? `Kör exakt optimering... ${Math.round(elapsedMs / 1000)} s`
-              : 'Kör exakt optimering (tar upp till ett par minuter)'}
-          </button>
-        )}
-      </p>
-
-      {exactError && (
-        <p role="alert">Exakt optimering misslyckades: {exactError}</p>
-      )}
-
-      {exact && greedy.data && (
-        <p className="summary">
-          Exakt: {percent.format(exact.summary.total_waste_percent)} % spill mot girigs{' '}
-          {percent.format(greedy.data.summary.total_waste_percent)} % —{' '}
-          {mm.format(greedy.data.summary.total_bars - exact.summary.total_bars)} färre stänger,{' '}
-          {sek.format(greedy.data.summary.total_cost_sek - exact.summary.total_cost_sek)} SEK
-          lägre.
-        </p>
-      )}
-
-      {data.algorithm === 'exact' && unproven > 0 && (
-        <p>
-          {mm.format(unproven)} av {mm.format(groups.length)} grupper nådde inte bevisad
-          optimalitet inom lösarens tidsgräns — de visas som "bästa hittade", inte som optimala
-          (docs/adr.md ADR-2-tillägget).
-        </p>
-      )}
-
-      <p className="filter">
         <button type="button" onClick={() => exportOrderLines(data)}>
           Exportera inköpsunderlag (CSV)
         </button>
@@ -145,7 +81,10 @@ export function PurchaseOrderView({ onSelectOid }: PurchaseOrderViewProps) {
         <GroupCuts
           key={`${group.code}-${group.mat_code}`}
           group={group}
+          selectedOid={selectedOid}
           onSelectOid={onSelectOid}
+          hoveredOid={hoveredOid}
+          onHoverOid={onHoverOid}
         />
       ))}
 
@@ -190,15 +129,35 @@ export function PurchaseOrderView({ onSelectOid }: PurchaseOrderViewProps) {
 
 function GroupCuts({
   group,
+  selectedOid,
   onSelectOid,
+  hoveredOid,
+  onHoverOid,
 }: {
   group: GroupCuttingResult
+  selectedOid?: string | null
   onSelectOid?: (oid: string) => void
+  hoveredOid?: string | null
+  onHoverOid?: (oid: string | null) => void
 }) {
   const splicedOids = new Set(group.splices.map((s) => s.oid))
 
+  const detailsRef = useRef<HTMLDetailsElement>(null)
+  const cutRefs = useRef(new Map<string, HTMLButtonElement>())
+
+  // Klick på ett element i 3D-vyn ska hitta fram till raden här, även om gruppen är
+  // hopfälld -- annars "highlightar" 3D-vyn en rad ingen ser.
+  useEffect(() => {
+    if (!selectedOid) return
+    const button = cutRefs.current.get(selectedOid)
+    if (!button || !detailsRef.current) return
+
+    detailsRef.current.open = true
+    button.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [selectedOid])
+
   return (
-    <details>
+    <details ref={detailsRef}>
       <summary>
         <span className="group-name">
           {group.code} {group.mat_code}
@@ -238,9 +197,21 @@ function GroupCuts({
                 {bar.cuts.map((cut) => (
                   <button
                     key={`${cut.oid}-${cut.segment_index ?? 0}`}
+                    ref={(el) => {
+                      if (el) cutRefs.current.set(cut.oid, el)
+                      else cutRefs.current.delete(cut.oid)
+                    }}
                     type="button"
-                    className={cut.spliced ? 'cut flag' : 'cut'}
+                    className={[
+                      cut.spliced ? 'cut flag' : 'cut',
+                      hoveredOid === cut.oid && 'cut-hover',
+                      selectedOid === cut.oid && 'cut-selected',
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
                     onClick={() => onSelectOid?.(cut.oid)}
+                    onMouseEnter={() => onHoverOid?.(cut.oid)}
+                    onMouseLeave={() => onHoverOid?.(null)}
                   >
                     {cut.oid} · {mm.format(cut.length_mm)} mm{segmentLabel(cut)}
                   </button>

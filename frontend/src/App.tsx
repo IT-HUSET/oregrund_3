@@ -11,6 +11,8 @@ type Tab = (typeof TABS)[number]
 function App() {
   const [tab, setTab] = useState<Tab>('Materialbehov')
   const [selectedOid, setSelectedOid] = useState<string | null>(null)
+  const [hoveredOid, setHoveredOid] = useState<string | null>(null)
+  const showViewer = tab === 'Inköpsunderlag'
 
   return (
     <div className="app">
@@ -25,15 +27,31 @@ function App() {
         </nav>
       </header>
 
-      <main>
-        {tab === 'Materialbehov' && <BomTable />}
-        {tab === 'Artikelmatchning' && <BomGroupsView />}
-        {tab === 'Inköpsunderlag' && <PurchaseOrderView onSelectOid={setSelectedOid} />}
-      </main>
+      <div className={showViewer ? 'workspace split' : 'workspace'}>
+        {/* Panelen döljs med display:none, inte unmount: 18 MB-filen ska laddas i bakgrunden
+            från start, inte när fliken öppnas på scen (docs/prd.md §7). */}
+        <div className="ifc-pane" style={{ display: showViewer ? undefined : 'none' }}>
+          <IfcViewer
+            selectedOid={selectedOid}
+            onPickOid={setSelectedOid}
+            hoveredOid={hoveredOid}
+            onHoverOid={setHoveredOid}
+          />
+        </div>
 
-      {/* Alltid monterad: 18 MB-filen ska laddas i bakgrunden från start, inte när fliken
-          öppnas på scen (docs/prd.md §7). */}
-      <IfcViewer selectedOid={selectedOid} onPickOid={setSelectedOid} />
+        <main>
+          {tab === 'Materialbehov' && <BomTable />}
+          {tab === 'Artikelmatchning' && <BomGroupsView />}
+          {tab === 'Inköpsunderlag' && (
+            <PurchaseOrderView
+              selectedOid={selectedOid}
+              onSelectOid={setSelectedOid}
+              hoveredOid={hoveredOid}
+              onHoverOid={setHoveredOid}
+            />
+          )}
+        </main>
+      </div>
     </div>
   )
 }

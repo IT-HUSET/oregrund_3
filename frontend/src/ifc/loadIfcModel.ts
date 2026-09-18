@@ -12,6 +12,13 @@ import { IFCBEAM, IFCCOLUMN, IfcAPI, type FlatMesh, type PlacedGeometry } from '
 /** Typerna vars Tag matchar FRAMEPIECE OID. Båda behövs: 422 + 309 = alla 731 (docs/prd.md §0). */
 const TRACEABLE_TYPES = [IFCBEAM, IFCCOLUMN]
 
+/**
+ * Opacitet för element utan Tag (t.ex. plattor/skivor). Backend tar in ALLA FRAMEPIECE utan
+ * filtrering (backend/app/services/xml_parser.py, backend/app/services/article_matching.py) och
+ * täckningen Tag↔OID är 100 % (docs/prd.md §0) -- så "har Tag" == "finns i inköpsunderlaget".
+ */
+const GHOST_OPACITY = 0.12
+
 export interface IfcModel {
   root: THREE.Group
   /** Alla meshar som går att klicka på, för raycasting. */
@@ -40,15 +47,22 @@ export async function loadIfcModel(
   onProgress('Parsar IFC...')
   const modelId = api.OpenModel(bytes)
 
+  onProgress('Kopplar OID mot Tag...')
+  const { expressIdByTag, tagByExpressId } = readTags(api, modelId)
+
   const root = new THREE.Group()
   const pickable: THREE.Mesh[] = []
   const meshesByExpressId = new Map<number, THREE.Mesh[]>()
   const materials = new Map<string, THREE.MeshLambertMaterial>()
 
+  onProgress('Bygger geometri...')
   api.StreamAllMeshes(modelId, (flatMesh: FlatMesh) => {
     const expressId = flatMesh.expressID
+    // Osynliggör inte helt -- ett tonat spöke visar fortfarande att elementet finns, bara att
+    // det inte ingår i inköpsunderlaget (plattor/skivor saknar Tag, docs/adr.md ADR-3).
+    const traceable = tagByExpressId.has(expressId)
     for (let i = 0; i < flatMesh.geometries.size(); i++) {
-      const mesh = buildMesh(api, modelId, flatMesh.geometries.get(i), materials)
+      const mesh = buildMesh(api, modelId, flatMesh.geometries.get(i), materials, traceable)
       mesh.userData.expressId = expressId
       root.add(mesh)
       pickable.push(mesh)
@@ -59,11 +73,8 @@ export async function loadIfcModel(
     }
   })
 
-  onProgress('Kopplar OID mot Tag...')
-  const { expressIdByTag, tagByExpressId } = readTags(api, modelId)
-
-  // IFC är Z-upp, three.js Y-upp.
-  root.rotation.x = -Math.PI / 2
+  // 772_H811_new.ifc är redan Y-upp i sina egna världskoordinater (uppmätt: Y-extent ~2.9 m,
+  // matchar rumshöjd). Ingen Z-upp-rotation ska appliceras -- annars hamnar huset på långsidan.
   centerOnOrigin(root)
 
   api.CloseModel(modelId)
@@ -86,6 +97,7 @@ function buildMesh(
   modelId: number,
   placed: PlacedGeometry,
   materials: Map<string, THREE.MeshLambertMaterial>,
+  traceable: boolean,
 ): THREE.Mesh {
   const geometry = api.GetGeometry(modelId, placed.geometryExpressID)
   // Interleavat: 6 floats per vertex, position följt av normal.
@@ -109,7 +121,7 @@ function buildMesh(
   bufferGeometry.setAttribute('normal', new THREE.BufferAttribute(normals, 3))
   bufferGeometry.setIndex(new THREE.BufferAttribute(new Uint32Array(indices), 1))
 
-  const mesh = new THREE.Mesh(bufferGeometry, materialFor(placed.color, materials))
+  const mesh = new THREE.Mesh(bufferGeometry, materialFor(placed.color, materials, traceable))
   // applyMatrix4, inte matrix.fromArray: det senare kräver att matrixWorldNeedsUpdate sätts för
   // hand när matrixAutoUpdate är av, annars ritar renderloopen allt med identitetsmatris.
   mesh.applyMatrix4(new THREE.Matrix4().fromArray(placed.flatTransformation))
@@ -119,16 +131,22 @@ function buildMesh(
 function materialFor(
   color: { x: number; y: number; z: number; w: number },
   materials: Map<string, THREE.MeshLambertMaterial>,
+  traceable: boolean,
 ): THREE.MeshLambertMaterial {
-  const key = `${color.x},${color.y},${color.z},${color.w}`
+  // traceable i nyckeln: samma färg får annars samma cachade material oavsett spårbarhet, och
+  // då skulle en spårbar balk bli lika genomskinlig som en icke-spårbar platta med samma kulör.
+  const key = `${color.x},${color.y},${color.z},${color.w},${traceable}`
   const cached = materials.get(key)
   if (cached) return cached
 
   const material = new THREE.MeshLambertMaterial({
     color: new THREE.Color(color.x, color.y, color.z),
     side: THREE.DoubleSide,
-    transparent: color.w < 1,
-    opacity: color.w,
+    transparent: traceable ? color.w < 1 : true,
+    opacity: traceable ? color.w : GHOST_OPACITY,
+    // Skriv inte djup för spökade element -- annars sorteras andra genomskinliga ytor bakom
+    // dem fel (t.ex. highlightmaterialet, som redan kör med depthTest av av samma anledning).
+    depthWrite: traceable,
   })
   materials.set(key, material)
   return material
