@@ -16,6 +16,29 @@ Arkitektur: separat Python/FastAPI-backend (all affärslogik: parsning, matchnin
 - `docs/adr.md` — arkitekturskiss och tre beslut (backend-split, optimeringsalgoritm, 3D-bibliotek)
 - `docs/plan.md` — de fyra inkrementen, i visningsordning, med kontroll per rad
 
+## Projektdokumentindex
+
+<!-- Talar om för AndThen-skills var projektet har sina dokument. Rader borttagna som inte
+     används. Sökvägar relativa till repo-roten. ADR:erna ligger inline i docs/adr.md, inte en
+     fil per beslut under docs/adrs/ — en medveten avvikelse från AndThens defaultlayout för det
+     här 4-timmarsprojektet. -->
+
+| Dokumenttyp | Plats | Notering |
+|---|---|---|
+| Product | `docs/PRODUCT.md` | Produktvision, målgrupper, kapabiliteter |
+| PRD | `docs/prd.md` | Krav, roller, vad som INTE byggs |
+| Plan | `docs/plan.md` | De fyra inkrementen, kontroll per rad |
+| API-kontrakt | `docs/api-contract.md` | Fälten i backend-API:ets JSON-svar |
+| Decisions | `docs/DECISIONS.md` | ADR-index — pekar in i `docs/adr.md` |
+| ADR:er (fulltext) | `docs/adr.md` | ADR-1/2/3, inline (avviker från `docs/adrs/`) |
+| Architecture | `docs/ARCHITECTURE.md` | Systemöversikt, komponenter, dataflöde |
+| Stack | `docs/STACK.md` | Teknikstack med versioner |
+| Key Dev Commands | `docs/KEY_DEVELOPMENT_COMMANDS.md` | Kör/test/build-kommandon |
+| Learnings | `docs/LEARNINGS.md` | Fallgropar/kunskapsindex |
+| Guidelines | `docs/guidelines/` | Utvecklingsriktlinjer |
+| Issue Tracker | `docs/ISSUE-TRACKER.md` | Backend: GitHub |
+| Agent Temp | `.agent_temp/` | Temporär agent-workspace (gitignored) |
+
 ## Kör
 
 Backend (`backend/`):
@@ -37,6 +60,9 @@ Skapa inte en annan mappstruktur utan att uppdatera `adr.md` först.
 - Kontroll per inkrement: se kolumnen "Kontroll (test | klick)" i `docs/plan.md` — varje rad har
   både ett automattest och ett manuellt klicksteg. Ett inkrement räknas inte klart förrän båda är
   gjorda.
+
+**Läs alltid** `docs/guidelines/CRITICAL-RULES-AND-GUARDRAILS.md` — generella arbetsregler
+(scope-disciplin, verifiering, git) som gäller utöver punkterna nedan.
 
 ## Gör inte
 
