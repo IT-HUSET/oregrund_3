@@ -119,15 +119,24 @@ se `prd.md` §0/§3.4) kräver att `772_H811_new.ifc` faktiskt renderas och att 
 väljas och lysas upp programmatiskt. Att skriva en egen IFC-parser och 3D-renderare från grunden
 är inte rimligt på 4h.
 
-**Vad vi valde:** Använd `web-ifc` (WASM IFC-parser) tillsammans med `@thatopen/components` /
-`three.js` för rendering, val och highlight av element — helt i frontend, enligt ADR-1. Backend
-skickar bara `oid` per rad i sina API-svar (den behöver aldrig öppna IFC-filen); frontend bygger
-själv en mappningstabell IFC `expressID` → `Tag` vid inläsning av modellen och slår upp
-`Tag === oid` när en rad klickas.
+**Vad vi valde:** Använd `web-ifc` (WASM IFC-parser) tillsammans med `three.js` för rendering,
+val och highlight av element — helt i frontend, enligt ADR-1. Backend skickar bara `oid` per rad
+i sina API-svar (den behöver aldrig öppna IFC-filen); frontend bygger själv en mappningstabell
+IFC `expressID` ↔ `Tag` vid inläsning av modellen och slår upp `Tag === oid` när en rad klickas,
+respektive `expressID → Tag` när ett element klickas i 3D-vyn.
+
+**Varför inte `@thatopen/components`** (som stod som förslag här tidigare): modellen är uppmätt
+till 2 512 element, och det biblioteket löser i praktiken draw call-problemet vid tiotusentals
+element genom fragments/instansiering — ett problem vi inte har. Det kostar i stället fyra
+beroenden och en IFC→`.frag`-konvertering genom `@thatopen/fragments`, alltså mer av exakt den
+tredjepartsinlärning som är tidsrisken nedan. Med en `three.js`-mesh per element blir dessutom
+picking i 3D-vyn en rak `raycaster.intersectObjects`-träff med `expressID` i `userData`, i
+stället för en fragment-id-karta som måste översättas tillbaka.
 
 **Vad det kostar:** Ett beroende av ett tredjepartsbiblioteks API-yta och dokumentation som vi
 inte kontrollerar tidsåtgången för att lära oss under demodagen — detta är enligt `prd.md` §6/§7
 den enskilt största tidsrisken, och skärs inte vid resursbrist (annat skärs istället). Highlight
-begränsas till element med verifierad OID↔Tag-koppling (`FRAMEPIECE`/`IFCBEAM`), inte hela
-modellen. Den som bygger 3D-vyn kan jobba isolerat mot en handfull kända OID:er tills backend-
-API:et är klart.
+begränsas till element med verifierad OID↔Tag-koppling — `IFCBEAM` **och** `IFCCOLUMN`, som
+tillsammans täcker alla 731 oid (422 + 309, uppmätt, se `prd.md` §0); enbart `IFCBEAM` hade
+tappat 42 %. Övriga element (plattor, skivor) renderas men är inte spårbara. Den som bygger
+3D-vyn kan jobba isolerat mot en handfull kända OID:er tills backend-API:et är klart.

@@ -32,9 +32,11 @@ nedladdad till **`./data`**:
   branschreferens — de faktiska regelvirkesdimensionerna (45×95, 45×145 osv.) kommer från
   `components.xml`, inte från dessa filer. Se `data/README.md` för källor och caveat.
 
-**Nyckelfynd:** `IFCBEAM`-entiteternas `Tag`-fält matchar exakt `OID` på motsvarande
-`FRAMEPIECE` i XML:en (t.ex. `Tag='589830'` ↔ `OID="589830"`). Det ger en verifierad,
+**Nyckelfynd:** `IFCBEAM`- och `IFCCOLUMN`-entiteternas `Tag`-fält matchar exakt `OID` på
+motsvarande `FRAMEPIECE` i XML:en (t.ex. `Tag='589830'` ↔ `OID="589830"`). Det ger en verifierad,
 direkt koppling mellan varje kapbit i materiallistan och dess geometri i 3D-modellen.
+Täckningen är uppmätt till **100 %**: alla 731 `FRAMEPIECE`-oid har en träff i modellen, 422 på
+`IFCBEAM` och 309 på `IFCCOLUMN`. Båda typerna måste alltså mappas — bara `IFCBEAM` ger 58 %.
 
 **Ytterligare fynd (upptäckt under uppbyggnad):** 43 av de 299 unika kaplängderna i
 `components.xml` överstiger 5400 mm — längsta handelslängden i
@@ -89,9 +91,11 @@ matematisk optimering), och att resultatet kan verifieras visuellt mot 3D-modell
    inköpsunderlag → export) — algoritmen optimerar ren materialtäckning och spill, den validerar
    inte skarvens strukturella placering (se §4). Ambitionsnivå får skalas ned vid tidsbrist
    (se §6) — men algoritmen ska vara verklig, inte hårdkodad per demo-fil.
-4. **Visuell 3D-spårbarhet.** Klick på en rad i kaplistan/inköpsunderlaget highlightar
-   motsvarande element i en 3D-vy av `772_H811_new.ifc`, via OID↔Tag-kopplingen. Detta är
-   projektets skarpaste krav — prioriteras vid resurskonflikt.
+4. **Visuell 3D-spårbarhet, åt båda hållen.** Klick på en rad i kaplistan/inköpsunderlaget
+   highlightar motsvarande element i en 3D-vy av `772_H811_new.ifc`, via OID↔Tag-kopplingen —
+   och klick på ett element i 3D-vyn visar samma bits uppgifter ur materiallistan (oid,
+   tvärsnitt, klass, kaplängd, modul, funktion). Detta är projektets skarpaste krav —
+   prioriteras vid resurskonflikt.
 5. **Granskningsbart inköpsunderlag + spillrapport.** Tabell med inköpslängder, antal, uppskattad
    kostnad och total spillprocent, exporterbar (CSV/PDF-liknande vy räcker för demo).
 6. **Valbar exakt optimeringsalgoritm (tillägg, efterarbete 2026-09-18).** Utöver girig FFD
@@ -158,7 +162,7 @@ bin-packing till en enklare girig algoritm eller färre optimeringsvarianter. 3D
 |---|---|
 | IFC-viewer-integration tar längre tid än väntat | Skarpt prioriterad (§6) — får äta tid från optimeringssteget, inte tvärtom |
 | `.ifc`-filen (18 MB) är tung att ladda i webbläsare | Ladda/rendera i bakgrunden tidigt i demoflödet, undvik liveparsing på scen |
-| OID↔Tag-mappning saknas för vissa element (t.ex. plattor/`MISCCOMPONENT`) | Begränsa 3D-spårbarhet till `FRAMEPIECE`/`IFCBEAM`, där kopplingen är verifierad |
+| ~~OID↔Tag-mappning saknas för vissa element~~ — avskriven, täckningen är uppmätt till 100 % (§0) | Mappa både `IFCBEAM` och `IFCCOLUMN`; enbart `IFCBEAM` täcker 422 av 731 oid |
 | Kerf-/optimeringslogik hinner inte bli sofistikerad | Godtagbart för demo — en enkel, korrekt girig algoritm är trovärdig |
 | Skarvad bit tolkas nedströms (export, 3D-highlight) som en enda odelad handelslängd | Skarvade rader måste vara explicit märkta i datamodellen genom hela kedjan, inte bara i UI:t, så de inte kan förväxlas med en enskild bit |
 | Publiken (byggkunnig) ifrågasätter skarvens strukturella placering på scen | Var transparent: systemet löser materialtäckning, inte skarvregler — flaggat som medveten avgränsning i §4, likt AI-ritningstolkningen |
