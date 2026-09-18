@@ -56,7 +56,7 @@ det trasigt tyst, inte ett kompileringsfel. En extra process att köra jämfört
 det vinns tillbaka direkt genom att arbetet går att parallellisera och köra i språket teamet är
 snabbast i.
 
-### ADR-2: Girig heuristik (First-Fit-Decreasing) istället för exakt ILP-lösare för kapoptimeringen
+### ADR-2: Girig heuristik (First-Fit-Decreasing) som standard, exakt lösare valbar av användaren
 
 **Läget:** 1D cutting-stock-problemet är NP-svårt i sin exakta form. En exakt lösare
 (t.ex. ett ILP via OR-Tools) ger optimalt resultat men kräver antingen en dedikerad solver-
@@ -79,6 +79,38 @@ Detta ändrar inte beslutet ovan (fortfarande girig FFD, inte ILP): för behov >
 tillgängliga handelslängder girigt (störst först, minus kerf per snitt/skarv) tills täckning
 uppnås, och raden flaggas `spliced=true` i API-svaret. Algoritmen optimerar bara materialtäckning
 och spill — den validerar inte skarvens strukturella placering, se `prd.md` §3.3/§4.
+
+**Tillägg (valbar exakt lösare, efterarbete 2026-09-18):** Frågan kom upp igen efter demot: hur
+mycket spill faktiskt kostar det att välja girig FFD istället för en exakt lösare? Mättes med ett
+spike (branch `spike/exact-cutting-optimizer`, `backend/spikes/exact_cutting_spike.py`) — OR-Tools
+CP-SAT, formulerat som bin packing med variabel stånglängd (minimera total inköpt längd), kört mot
+riktiga grupper ur `components.xml`:
+
+| Grupp | Bitar | Girig FFD | Exakt (tidsgräns) | Besparing |
+|---|---|---|---|---|
+| `45x195/C24` | 13 (alla 2280 mm) | 5,00 % spill | 5,00 % spill, bevisat optimalt på 0,0 s | 0 mm — FFD redan optimal vid enhetliga längder |
+| `45x182/C24` | 68 | 5,75 % spill | 4,25 % @ 5 s / 3,73 % @ 60 s, **ej bevisat optimalt** | 1,6–2,1 % |
+| `45x220/C24` (störst) | 115 | 7,37 % spill | 6,00 % @ 15 s, **ej bevisat optimalt** | 1,46 % |
+
+Slutsats: vinsten är verklig men liten (0–2 procentenheter mindre spill) på grupper med varierande
+kaplängder, och obefintlig på grupper med enhetliga längder. CP-SAT bevisar inte global
+optimalitet för de större grupperna inom en demo-vänlig tidsgräns — bara "bästa hittade hittills".
+
+**Nytt beslut:** Girig FFD förblir standard och oförändrad (ovanstående beslut står kvar). En
+exakt lösare (OR-Tools CP-SAT) läggs till som ett explicit, användarvalt alternativ — inte som ny
+standard: `GET /api/purchase-order` får en valfri query-parameter `algorithm`
+(`greedy` default | `exact`, se `docs/api-contract.md`). Vid `exact` körs CP-SAT per grupp med en
+tidsgräns (konfigurerbar konstant i `backend/app/config.py`, aldrig hårdkodad inline); varje
+`GroupCuttingResult` får ett `optimal`-fält så att UI kan visa om lösningen är bevisat bäst eller
+bara "bästa hittade inom tidsgränsen".
+
+**Vad det nya alternativet kostar:** Nytt beroende (`ortools`) i backend, bara relevant när
+`exact` väljs. Svarstiden för `algorithm=exact` blir sekunder istället för millisekunder och
+skalar med gruppstorlek — värsta fallet (alla 24 grupper, full tidsgräns var) kan bli
+minuter, inte lämpligt som standard vid sidladdning. Detta är därför en explicit,
+användarinitierad omräkning i UI:t (t.ex. en "Kör exakt optimering"-knapp med tydlig
+väntetid/spinner), inte något som körs automatiskt. Svårare att förklara/felsöka live på scen än
+girig FFD — därför förblir girig standardvalet.
 
 ### ADR-3: Etablerat open source-bibliotek för IFC-rendering (web-ifc / @thatopen/components) istället för egen parser
 
