@@ -40,7 +40,7 @@ export function PurchaseOrderView({ onSelectOid }: PurchaseOrderViewProps) {
       <h2>Kapoptimering & spillrapport</h2>
 
       <p className="summary">
-        {percent.format(summary.total_waste_percent)} % spill · {mm.format(summary.total_bars)} stänger
+        {percent.format(summary.total_waste_percent)} % spill · {mm.format(summary.total_bars)} handelslängder
         · {sek.format(summary.total_cost_sek)} SEK
       </p>
       <p>
@@ -130,7 +130,7 @@ function GroupCuts({
           {group.code} {group.mat_code}
         </span>
         <span>{percent.format(group.waste_percent)} % spill</span>
-        <span>{mm.format(group.bars.length)} stänger</span>
+        <span>{mm.format(group.bars.length)} handelslängder</span>
         {splicedOids.size > 0 && (
           <span className="flag">{mm.format(splicedOids.size)} skarvade</span>
         )}
@@ -147,7 +147,7 @@ function GroupCuts({
       <table>
         <thead>
           <tr>
-            <th>Stång</th>
+            <th>Handelslängd nr</th>
             <th>Handelslängd (mm)</th>
             <th>Kapbitar (OID)</th>
             <th>Använt (mm)</th>
@@ -242,7 +242,7 @@ function exportOrderLines(data: PurchaseOrderResponse): void {
     [],
     ['Algoritm', data.algorithm],
     ['Kerf (mm)', data.kerf_mm],
-    ['Antal stänger', data.summary.total_bars],
+    ['Antal handelslängder', data.summary.total_bars],
     ['Behov (mm)', data.summary.total_needed_length_mm],
     ['Inköpt (mm)', data.summary.total_purchased_length_mm],
     ['Spill (%)', data.summary.total_waste_percent],
@@ -263,13 +263,13 @@ function exportCuttingList(data: PurchaseOrderResponse): void {
     [
       'Tvärsnitt',
       'Klass',
-      'Stång',
+      'Handelslängd nr',
       'Handelslängd (mm)',
       'OID',
       'Kaplängd (mm)',
       'Skarvad',
       'Segment',
-      'Använt på stången (mm)',
+      'Använt på handelslängden (mm)',
       'Kerf (mm)',
       'Spill (mm)',
     ],
