@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import './App.css'
 import { BomGroupsView } from './components/BomGroupsView'
 import { BomTable } from './components/BomTable'
 import { IfcViewer } from './components/IfcViewer'

@@ -27,4 +27,22 @@ td {
 
 th {
   background: #f4f4f4;
+  /* 731 rader scrollar i sidan (docs/plan.md #1) -- håll rubrikerna synliga. */
+  position: sticky;
+  top: 0;
+}
+
+td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.summary {
+  font-size: 1.05rem;
+}
+
+.filter {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
 }

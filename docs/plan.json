@@ -44,7 +44,7 @@
       "dependsOn": [],
       "parallel": false,
       "risk": "low",
-      "status": "in-progress",
+      "status": "done",
       "fis": null,
       "owner": null,
       "scope": "Backend parsar components.xml vid start (alla 731 FRAMEPIECE-poster) och exponerar GET /api/bom per docs/api-contract.md; frontend hämtar och renderar en tabell (tvärsnitt, längd, klass, modul, funktion). Boilerplate-fixturen i backend/app/services/fixtures.py ersätts av riktig parsning i backend/app/services/xml_parser.py. Ingen artikelmatchning, optimering eller 3D - bara inläsning och tabellvy.",
