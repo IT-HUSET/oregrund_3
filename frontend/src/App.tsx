@@ -31,7 +31,9 @@ function App() {
         {tab === 'Inköpsunderlag' && <PurchaseOrderView onSelectOid={setSelectedOid} />}
       </main>
 
-      <IfcViewer selectedOid={selectedOid} />
+      {/* Alltid monterad: 18 MB-filen ska laddas i bakgrunden från start, inte när fliken
+          öppnas på scen (docs/prd.md §7). */}
+      <IfcViewer selectedOid={selectedOid} onPickOid={setSelectedOid} />
     </div>
   )
 }

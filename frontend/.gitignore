@@ -12,6 +12,12 @@ dist
 dist-ssr
 *.local
 
+# Kopior, inte källor. Se frontend/README.md -- återskapa med:
+#   cp ../data/772_H811_new.ifc public/
+#   cp node_modules/web-ifc/web-ifc.wasm public/
+public/772_H811_new.ifc
+public/web-ifc.wasm
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

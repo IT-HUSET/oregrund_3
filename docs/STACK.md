@@ -17,7 +17,8 @@
 | React | ^19.2.8 | Frontend UI |
 | react-dom | ^19.2.8 | Frontend DOM rendering |
 | Vite | ^8.3.0 | Frontend dev server / build |
-| web-ifc / @thatopen/components | non-bindande förslag (`docs/adr.md` ADR-3) | IFC-parsning + 3D-rendering av `772_H811_new.ifc` — inte ännu i `frontend/package.json` |
+| web-ifc | 0.0.77 | IFC-parsning (WASM) av `772_H811_new.ifc`, klientsidan (`docs/adr.md` ADR-3) |
+| three.js | 0.186.0 | 3D-rendering, picking och highlight (`frontend/src/ifc/loadIfcModel.ts`) |
 
 ## Infrastructure
 | Service | Purpose | Notes |

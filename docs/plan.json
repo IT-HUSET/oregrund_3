@@ -111,10 +111,10 @@
       "dependsOn": ["S03"],
       "parallel": false,
       "risk": "high",
-      "status": "pending",
+      "status": "done",
       "fis": null,
       "owner": null,
-      "scope": "Frontend laddar 772_H811_new.ifc (web-ifc + three.js/@thatopen/components, docs/adr.md ADR-3) och bygger en expressID <-> Tag-karta helt klientsidan - backend öppnar aldrig .ifc-filen. Klick på en rad i inköpsunderlaget slår upp radens oid mot Tag och highlightar motsvarande element; en skarvad kapbit (flera cuts[]-rader, samma oid) highlightar ett enda 3D-element (se sharedDecisions). Highlight begränsas till element med verifierad OID<->Tag-koppling (FRAMEPIECE/IFCBEAM).",
+      "scope": "Frontend laddar 772_H811_new.ifc (web-ifc + three.js, docs/adr.md ADR-3) och bygger en expressID <-> Tag-karta helt klientsidan - backend öppnar aldrig .ifc-filen. Klick på en rad i inköpsunderlaget slår upp radens oid mot Tag och highlightar motsvarande element; en skarvad kapbit (flera cuts[]-rader, samma oid) highlightar ett enda 3D-element (se sharedDecisions). Klick på ett element i 3D-vyn visar omvänt bitens rad ur materiallistan (prd.md §3.4). Highlight begränsas till element med verifierad OID<->Tag-koppling: IFCBEAM + IFCCOLUMN, som täcker alla 731 oid (422 + 309, uppmätt).",
       "sourceRefs": [
         "prd.md#3-kärnkrav-must-haves-för-demot",
         "prd.md#5-vad-vi-visar-kl-1800",
