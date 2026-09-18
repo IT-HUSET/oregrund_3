@@ -7,13 +7,16 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers import bom, purchase_order
+from app.services.article_matching import get_trade_lengths_mm
 from app.services.xml_parser import get_frame_pieces
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-    """Läs in components.xml vid start (docs/adr.md skiss), inte på första requesten."""
+    """Läs in components.xml + handelslängder vid start (docs/adr.md skiss), inte på första
+    requesten."""
     get_frame_pieces()
+    get_trade_lengths_mm()
     yield
 
 

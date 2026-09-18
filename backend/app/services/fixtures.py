@@ -1,114 +1,31 @@
 """Fixture-/mockdata för boilerplate-läget.
 
-/api/bom är kopplat till den riktiga app/services/xml_parser.py (inkrement 1) och använder inte
-längre FRAME_PIECES/get_bom_response härifrån. Resten (bom/groups, purchase-order) ersätts av
-app/services/{article_matching,cutting_optimizer}.py när respektive inkrement (docs/plan.md) är
-klart — routrarna i app/routers/ importerar bara härifrån tills dess, så svarsformen är redan den
-riktiga (docs/api-contract.md) fast med en handfull rader.
+/api/bom och /api/bom/groups är kopplade till riktig data nu (app/services/xml_parser.py resp.
+app/services/article_matching.py, inkrement 1/2) och använder inte längre något härifrån.
+/api/purchase-order svarar fortfarande med fixture-data -- byt ut mot
+app.services.cutting_optimizer när inkrement 3 (docs/plan.md) är klart; responsformen
+(PurchaseOrderResponse) ändras inte.
 
-Raderna nedan är INTE hittepå: de är kopierade rakt av ur riktiga <FRAMEPIECE>-poster i
-data/components.xml (bl.a. OID 589830/589831/589832, samma OID som nämns i docs/prd.md §0 och
-som IFCBEAM.Tag i 772_H811_new.ifc). Kapoptimeringsexemplet för gruppen 45x182/C24 är en verklig
+OID:erna nedan är INTE hittepå: de är kopierade rakt av ur riktiga <FRAMEPIECE>-poster i
+data/components.xml (589830/589831/589832, samma OID som nämns i docs/prd.md §0 och som
+IFCBEAM.Tag i 772_H811_new.ifc). Kapoptimeringsexemplet för gruppen 45x182/C24 är en verklig
 girig FFD-körning (kerf=3.0 mm) på just de tre bitarna, inte påhittade tal.
 """
 
 from app.config import KERF_MM
 from app.models import (
     Bar,
-    BomGroup,
-    BomGroupsResponse,
     Cut,
-    FramePieceOut,
     GroupCuttingResult,
-    GroupedPiece,
     PurchaseOrderLine,
     PurchaseOrderResponse,
     PurchaseOrderSummary,
 )
 
-TRADE_LENGTHS_MM = [1800, 2100, 2400, 2700, 3000, 3300, 3600, 3900, 4200, 4500, 4800, 5100, 5400]
-
 # Mockat pris per löpmeter (SEK), per hållfasthetsklass. Riktiga priser är inte offentligt
 # tillgängliga, se docs/prd.md §4.
 MOCK_PRICE_PER_METER_SEK = {"C14": 28.0, "C16": 32.0, "C24": 38.0, "GL": 65.0, "CHS": 30.0}
 MOCK_LEAD_TIME_DAYS = 5
-
-FRAME_PIECES: list[FramePieceOut] = [
-    FramePieceOut(
-        oid="589830", item_id="FD5", code="45x182", width_mm=45, height_mm=182,
-        length_mm=255.0, mat_code="C24", module_name="131", module_flat="TVÄTT",
-        use="ÖPPNINGSREGEL", bom_phase="1. Floor",
-    ),
-    FramePieceOut(
-        oid="589831", item_id="FD4", code="45x182", width_mm=45, height_mm=182,
-        length_mm=255.0, mat_code="C24", module_name="131", module_flat="TVÄTT",
-        use="ÖPPNINGSREGEL", bom_phase="1. Floor",
-    ),
-    FramePieceOut(
-        oid="589832", item_id="P27", code="45x182", width_mm=45, height_mm=182,
-        length_mm=3110.0, mat_code="C24", module_name="131", module_flat="TVÄTT",
-        use="MODULREGEL", bom_phase="1. Floor",
-    ),
-    FramePieceOut(
-        oid="589792", item_id="P14", code="45x195", width_mm=45, height_mm=195,
-        length_mm=2280.0, mat_code="C24", module_name="132", module_flat="BASTU",
-        use="MODULREGEL", bom_phase="1. Floor",
-    ),
-    FramePieceOut(
-        oid="417827", item_id="1", code="45x45", width_mm=45, height_mm=45,
-        length_mm=355.0, mat_code="C16", module_name="130", module_flat="FRD",
-        use="REGEL", bom_phase="1. Floor",
-    ),
-    FramePieceOut(
-        oid="590470", item_id="75", code="45x70", width_mm=45, height_mm=70,
-        length_mm=2408.0, mat_code="C24", module_name="131", module_flat="TVÄTT",
-        use="REGEL", bom_phase="1. Floor",
-    ),
-    FramePieceOut(
-        oid="589719", item_id="19", code="45x220", width_mm=45, height_mm=220,
-        length_mm=3110.2, mat_code="C24", module_name="130", module_flat="FRD",
-        use="BÄRLINA", bom_phase="1. Floor",
-    ),
-    FramePieceOut(
-        oid="589965", item_id="2", code="90x220", width_mm=90, height_mm=220,
-        length_mm=2781.0, mat_code="C24", module_name="130", module_flat="FRD",
-        use="LYFTSTOLPE", bom_phase="1. Floor",
-    ),
-    FramePieceOut(
-        oid="589974", item_id="3", code="45x220", width_mm=45, height_mm=220,
-        length_mm=1554.9, mat_code="C16", module_name="130", module_flat="FRD",
-        use="BÄRLINA", bom_phase="1. Floor",
-    ),
-    FramePieceOut(
-        oid="589975", item_id="22", code="34x45", width_mm=34, height_mm=45,
-        length_mm=1906.0, mat_code="C24", module_name="130", module_flat="FRD",
-        use="KORSREGEL", bom_phase="1. Floor",
-    ),
-]
-
-
-def _group_key(p: FramePieceOut) -> tuple[str, str]:
-    return (p.code, p.mat_code)
-
-
-def get_bom_groups_response() -> BomGroupsResponse:
-    groups: dict[tuple[str, str], list[FramePieceOut]] = {}
-    for piece in FRAME_PIECES:
-        groups.setdefault(_group_key(piece), []).append(piece)
-
-    return BomGroupsResponse(
-        groups=[
-            BomGroup(
-                code=code,
-                mat_code=mat_code,
-                piece_count=len(pieces),
-                total_length_mm=sum(p.length_mm for p in pieces),
-                pieces=[GroupedPiece(oid=p.oid, length_mm=p.length_mm) for p in pieces],
-                available_trade_lengths_mm=TRADE_LENGTHS_MM,
-            )
-            for (code, mat_code), pieces in groups.items()
-        ]
-    )
 
 
 def get_purchase_order_response() -> PurchaseOrderResponse:

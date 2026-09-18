@@ -1,15 +1,14 @@
 """GET /api/bom och GET /api/bom/groups. Se docs/api-contract.md.
 
-/api/bom läser nu components.xml på riktigt (app/services/xml_parser.py, inkrement 1).
-/api/bom/groups svarar fortfarande med fixture-data (app/services/fixtures.py) -- byt ut mot
-app.services.article_matching när inkrement 2 (docs/plan.md) är klart; responsformen
-(BomGroupsResponse) ändras inte.
+Båda läser nu riktig data: /api/bom parsar components.xml (app/services/xml_parser.py,
+inkrement 1), /api/bom/groups grupperar den mot handelslängder ur
+data/svensktra_standardlangder_mm.csv (app/services/article_matching.py, inkrement 2).
 """
 
 from fastapi import APIRouter
 
 from app.models import BomGroupsResponse, BomResponse
-from app.services import fixtures
+from app.services.article_matching import get_trade_lengths_mm, group_by_code_and_material
 from app.services.xml_parser import get_frame_pieces
 
 router = APIRouter(prefix="/api", tags=["bom"])
@@ -23,4 +22,5 @@ def get_bom() -> BomResponse:
 
 @router.get("/bom/groups", response_model=BomGroupsResponse)
 def get_bom_groups() -> BomGroupsResponse:
-    return fixtures.get_bom_groups_response()
+    groups = group_by_code_and_material(get_frame_pieces(), get_trade_lengths_mm())
+    return BomGroupsResponse(groups=groups)
