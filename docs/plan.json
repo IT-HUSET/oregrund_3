@@ -1,0 +1,135 @@
+{
+  "schemaVersion": "1",
+  "prd": "docs/prd.md",
+  "references": [
+    "docs/adr.md",
+    "docs/api-contract.md"
+  ],
+  "overview": {
+    "summary": "Fyra sekventiella inkrement som tillsammans bygger demoflödet för Lindbäcks Bygg: läs in components.xml till en materialbehovslista, matcha behovet mot Svenskt Trä-handelslängder, kör girig FFD-kapoptimering (inkl. skarvning av behov > 5400 mm) med spillrapport och inköpsunderlag, och gör resultatet klickbart spårbart mot 3D-modellen 772_H811_new.ifc via OID-Tag-koppling. Backend (FastAPI) äger all affärslogik; frontend (React/TS) äger UI och 3D-rendering (docs/adr.md ADR-1/2/3).\n\nVarje inkrement är en demobar vertikal skiva, i strikt beroendekedja (docs/plan.md, Ordningsprincip): S02 kräver S01:s BOM, S03 kräver S02:s gruppering, S04 kräver purchase-order-svaret (oid-fältet finns dock redan från S01). Fullständigt API-kontrakt för alla fyra endpoints är redan spikat i docs/api-contract.md, vilket minskar risken för kontraktsdrift mellan stories trots den sekventiella beroendekedjan.",
+    "phases": [
+      { "id": "P1", "name": "Demoflöde", "waves": ["W1", "W2", "W3", "W4"] }
+    ]
+  },
+  "sharedDecisions": [
+    {
+      "title": "oid som gemensam nyckel genom hela kedjan",
+      "description": "S01 introducerar fältet oid (= FRAMEPIECE OID = IFCBEAM.Tag) i /api/bom och för det oförändrat vidare genom /api/bom/groups (S02) och /api/purchase-order (S03); S04 slår upp oid mot IFC Tag för 3D-highlight. Fältnamn och värde får inte ändras eller härledas om i någon story.",
+      "stories": ["S01", "S02", "S03", "S04"]
+    },
+    {
+      "title": "En skarvad kapbit highlightar exakt ett 3D-element",
+      "description": "S03 producerar flera cuts[]-rader (samma oid, spliced=true, segment_index/segment_count) för ett behov som skarvas över flera inköpta längder. S04 måste highlighta ett enda IFC-element per unikt oid oavsett hur många bars[].cuts[]-rader det förekommer i (docs/api-contract.md, GET /api/purchase-order-avsnittet) - aldrig ett highlight per segment.",
+      "stories": ["S03", "S04"]
+    }
+  ],
+  "bindingConstraints": [
+    {
+      "featureId": "PRD-3.4",
+      "anchor": "prd.md#3-kärnkrav-must-haves-för-demot",
+      "verbatim": "Visuell 3D-spårbarhet. Klick på en rad i kaplistan/inköpsunderlaget highlightar motsvarande element i en 3D-vy av 772_H811_new.ifc, via OID↔Tag-kopplingen. Detta är projektets skarpaste krav — prioriteras vid resurskonflikt."
+    },
+    {
+      "featureId": "PRD-3.3",
+      "anchor": "prd.md#3-kärnkrav-must-haves-för-demot",
+      "verbatim": "Sådana rader flaggas tydligt som skarvade genom hela kedjan (kaplista → inköpsunderlag → export) — algoritmen optimerar ren materialtäckning och spill, den validerar inte skarvens strukturella placering."
+    }
+  ],
+  "stories": [
+    {
+      "id": "S01",
+      "name": "Skelett - läs in och visa materialbehov",
+      "phase": "P1",
+      "wave": "W1",
+      "dependsOn": [],
+      "parallel": false,
+      "risk": "low",
+      "status": "pending",
+      "fis": null,
+      "owner": null,
+      "scope": "Backend parsar components.xml vid start (alla 731 FRAMEPIECE-poster) och exponerar GET /api/bom per docs/api-contract.md; frontend hämtar och renderar en tabell (tvärsnitt, längd, klass, modul, funktion). Boilerplate-fixturen i backend/app/services/fixtures.py ersätts av riktig parsning i backend/app/services/xml_parser.py. Ingen artikelmatchning, optimering eller 3D - bara inläsning och tabellvy.",
+      "sourceRefs": [
+        "prd.md#3-kärnkrav-must-haves-för-demot",
+        "prd.md#5-vad-vi-visar-kl-1800",
+        "docs/plan.md#1",
+        "docs/api-contract.md#get-apibom"
+      ],
+      "provenance": null,
+      "assetRefs": ["docs/adr.md"],
+      "notes": "Kontroll (docs/plan.md #1): GET /api/bom -> 200, len(items) == 731; filtrera code == \"45x182\" -> 72 träffar."
+    },
+    {
+      "id": "S02",
+      "name": "Artikelmatchning mot handelslängder",
+      "phase": "P1",
+      "wave": "W2",
+      "dependsOn": ["S01"],
+      "parallel": false,
+      "risk": "low",
+      "status": "pending",
+      "fis": null,
+      "owner": null,
+      "scope": "Backend grupperar BOM-raderna per (code, mat_code) och matchar mot riktiga handelslängder ur data/svensktra_standardlangder_mm.csv (aldrig hårdkodade), exponerat via GET /api/bom/groups (docs/api-contract.md). Frontend visar en grupperad vy: grupp, antal behövda bitar, tillgängliga handelslängder. Ingen kapoptimering eller spillberäkning i denna story - bara gruppering och matchning.",
+      "sourceRefs": [
+        "prd.md#3-kärnkrav-must-haves-för-demot",
+        "prd.md#5-vad-vi-visar-kl-1800",
+        "docs/plan.md#2",
+        "docs/api-contract.md#get-apibomgroups"
+      ],
+      "provenance": null,
+      "assetRefs": ["docs/adr.md"],
+      "notes": "Kontroll (docs/plan.md #2): gruppen 45x182/C24 innehåller exakt 72 rader och listar handelslängderna 1800-5400 mm."
+    },
+    {
+      "id": "S03",
+      "name": "Kapoptimering, spillrapport och inköpsunderlag",
+      "phase": "P1",
+      "wave": "W3",
+      "dependsOn": ["S02"],
+      "parallel": false,
+      "risk": "medium",
+      "status": "pending",
+      "fis": null,
+      "owner": null,
+      "scope": "Backend kör girig First-Fit-Decreasing-kapoptimering per grupp (docs/adr.md ADR-2) med kerf-avdrag (KERF_MM, backend/app/config.py), inkl. skarvning av behov > 5400 mm över flera inköpta längder (spliced=true, segment_index/segment_count, groups[].splices[]). Returnerar kaplista, inköpsunderlag (mockat pris/artikelnr/leveranstid) och spillrapport via GET /api/purchase-order (docs/api-contract.md, fullständigt exempel inkl. skarvfält). Frontend visar kaplista, total spillprocent, exportknapp (CSV). Byt inte algoritmen mot en exakt ILP-lösare - beslutet är låst i ADR-2.",
+      "sourceRefs": [
+        "prd.md#3-kärnkrav-must-haves-för-demot",
+        "prd.md#5-vad-vi-visar-kl-1800",
+        "prd.md#0-vad-som-ändrades-mot-originalscopet-och-varför",
+        "docs/plan.md#3",
+        "docs/api-contract.md#get-apipurchase-order"
+      ],
+      "provenance": null,
+      "assetRefs": ["docs/adr.md"],
+      "notes": "Kontroll (docs/plan.md #3): för en känd grupp balanserar materialet: sum(cuts.length_mm) + kerf_total_mm + waste_mm == used_length_mm <= purchase_length_mm, per bar oavsett spliced. För skarvade oid: sum(cuts med detta oid.length_mm) == splices[].total_length_mm."
+    },
+    {
+      "id": "S04",
+      "name": "3D-spårbarhet",
+      "phase": "P1",
+      "wave": "W4",
+      "dependsOn": ["S03"],
+      "parallel": false,
+      "risk": "high",
+      "status": "pending",
+      "fis": null,
+      "owner": null,
+      "scope": "Frontend laddar 772_H811_new.ifc (web-ifc + three.js/@thatopen/components, docs/adr.md ADR-3) och bygger en expressID <-> Tag-karta helt klientsidan - backend öppnar aldrig .ifc-filen. Klick på en rad i inköpsunderlaget slår upp radens oid mot Tag och highlightar motsvarande element; en skarvad kapbit (flera cuts[]-rader, samma oid) highlightar ett enda 3D-element (se sharedDecisions). Highlight begränsas till element med verifierad OID<->Tag-koppling (FRAMEPIECE/IFCBEAM).",
+      "sourceRefs": [
+        "prd.md#3-kärnkrav-must-haves-för-demot",
+        "prd.md#5-vad-vi-visar-kl-1800",
+        "prd.md#7-risker",
+        "docs/plan.md#4",
+        "docs/api-contract.md#get-apipurchase-order"
+      ],
+      "provenance": null,
+      "assetRefs": ["docs/adr.md"],
+      "notes": "Kontroll (docs/plan.md #4): givet känt OID 589830, mappningen hittar rätt expressID i den laddade IFC-modellen; klick på raden highlightar balken i 3D-vyn. Skärs sist vid tidsbrist (prd.md §6) - skär hellre i S03:s optimeringssofistikering."
+    }
+  ],
+  "riskSummary": [
+    { "story": "S03", "risk": "medium", "mitigation": "Girig FFD är enkel och deterministisk (ADR-2); skarvningslogiken testas mot materialbalans-invarianten i docs/api-contract.md snarare än mot en global optimalitetsgaranti." },
+    { "story": "S04", "risk": "high", "mitigation": "Största tidsrisken i hela projektet (prd.md §7): web-ifc/@thatopen/components-inlärning. Prioriteras vid resurskonflikt - skär i S03:s sofistikering, aldrig i S04. Begränsa highlight till FRAMEPIECE/IFCBEAM med verifierad OID-koppling; ladda .ifc-filen (18 MB) i bakgrunden tidigt, inte liveparsing på scen." }
+  ],
+  "executionNotes": "Migrerad från legacy docs/plan.md: det dokumentet använder ett projektspecifikt inkrementformat (# | Inkrement | Demovärde | Scenario | Kontroll | Status), inte den kanoniska Story Catalog-kolumnformen i data-contract.md, så stories här är omtolkade direkt från PRD + de fyra inkrementraderna snarare än mekaniskt kolumn-mappade. Alla fyra radernas Status-cell \"Ej påbörjad\" tolkas som pending (semantiskt \"ej startad\"), inte skipped - \"unrecognized -> skipped\"-regeln i plan-schema.md är till för verkligt oklara/ersatta statusvärden (t.ex. \"Retired\"), inte en direkt svensk motsvarighet till \"Pending\". docs/plan.md tas inte bort - den fungerar som demovärde/scenario-referens per story och konsumeras inte längre av verktygen. Kör S01->S04 i strikt ordning (varje story beror på föregående); se docs/adr.md ADR-1/2/3 för de arkitekturbeslut som binder alla fyra."
+}
