@@ -1,9 +1,15 @@
 """Kapoptimering (1D cutting stock) per grupp, plus inköpsunderlag och spillrapport.
 
-Inkrement 3, docs/plan.md rad 3. Algoritm: girig First-Fit-Decreasing, INTE en exakt
-ILP-lösare — det beslutet står i docs/adr.md ADR-2 och ändras inte här.
+Inkrement 3, docs/plan.md rad 3. Standardalgoritm: girig First-Fit-Decreasing (docs/adr.md
+ADR-2). En exakt lösare (OR-Tools CP-SAT) finns som valbart alternativ (algorithm="exact"),
+se ADR-2-tillägget -- girig FFD förblir standard och dess beteende är oförändrat.
 """
 
+import math
+import time
+from typing import Literal
+
+from app.config import EXACT_SOLVER_NUM_WORKERS
 from app.models import (
     Bar,
     BomGroup,
@@ -62,6 +68,77 @@ def _pack_ffd(pieces: list[GroupedPiece], trade_lengths_asc: list[int], kerf_mm:
     ]
 
 
+def _solve_exact(
+    pieces: list[GroupedPiece], trade_lengths_asc: list[int], kerf_mm: float, time_budget_s: float
+) -> tuple[list[Bar], bool]:
+    """Exakt bin packing (OR-Tools CP-SAT), variabel stånglängd -- minimerar total inköpt längd.
+
+    Se docs/adr.md ADR-2-tillägget för bakgrund och uppmätta spilltal (ursprungligen mätt i
+    backend/spikes/exact_cutting_spike.py). Övre gräns på antal stänger sätts av en girig
+    FFD-körning (säker, om än onödigt stor, gräns). Returnerar (bars, optimal) där optimal bara
+    är True om lösaren bevisade optimalitet inom time_budget_s -- annars "bästa hittade", och vi
+    faller tillbaka på FFD-lösningen om ingen lösning alls hittades inom tidsgränsen.
+    """
+    from ortools.sat.python import cp_model
+
+    baseline_bars = _pack_ffd(pieces, trade_lengths_asc, kerf_mm)
+    if not pieces:
+        return baseline_bars, True
+
+    model = cp_model.CpModel()
+    n = len(pieces)
+    max_bins = len(baseline_bars)
+
+    domain = cp_model.Domain.FromValues([0] + trade_lengths_asc)
+    capacity = [model.NewIntVarFromDomain(domain, f"cap_{j}") for j in range(max_bins)]
+    assign = [[model.NewBoolVar(f"x_{i}_{j}") for j in range(max_bins)] for i in range(n)]
+
+    for i in range(n):
+        model.Add(sum(assign[i][j] for j in range(max_bins)) == 1)
+
+    # Avrunda uppåt, inte till närmaste heltal: CP-SAT:s heltalsdomän måste alltid vara en
+    # konservativ övre gräns på det riktiga (flyttals-)behovet, annars kan den verkliga summan
+    # (piece.length_mm + kerf) hamna över purchase_length_mm trots att modellen tillåter den.
+    needed = [math.ceil(p.length_mm + kerf_mm) for p in pieces]
+    for j in range(max_bins):
+        model.Add(sum(needed[i] * assign[i][j] for i in range(n)) <= capacity[j])
+
+    # Symmetribrytning: kapacitet fallande -- färre ekvivalenta permutationer att utforska.
+    for j in range(max_bins - 1):
+        model.Add(capacity[j] >= capacity[j + 1])
+
+    model.Minimize(sum(capacity))
+
+    solver = cp_model.CpSolver()
+    solver.parameters.max_time_in_seconds = time_budget_s
+    solver.parameters.num_workers = EXACT_SOLVER_NUM_WORKERS
+    status = solver.Solve(model)
+
+    if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
+        return baseline_bars, False
+
+    bars: list[Bar] = []
+    for j in range(max_bins):
+        purchase_length_mm = solver.Value(capacity[j])
+        if purchase_length_mm == 0:
+            continue
+
+        bin_pieces = [pieces[i] for i in range(n) if solver.Value(assign[i][j])]
+        cuts = [Cut(oid=p.oid, length_mm=p.length_mm) for p in bin_pieces]
+        used_length_mm = sum(p.length_mm for p in bin_pieces) + len(bin_pieces) * kerf_mm
+        bars.append(
+            Bar(
+                purchase_length_mm=purchase_length_mm,
+                cuts=cuts,
+                used_length_mm=used_length_mm,
+                kerf_total_mm=len(bin_pieces) * kerf_mm,
+                waste_mm=purchase_length_mm - used_length_mm,
+            )
+        )
+
+    return bars, status == cp_model.OPTIMAL
+
+
 def _splice_piece(
     piece: GroupedPiece, trade_lengths_desc: list[int], kerf_mm: float
 ) -> tuple[list[Bar], Splice]:
@@ -113,11 +190,21 @@ def _splice_piece(
     return bars, splice
 
 
-def optimize_group(group: BomGroup, kerf_mm: float) -> GroupCuttingResult:
-    """Kör FFD mot group.available_trade_lengths_mm, kerf_mm avdrag per snitt.
+def optimize_group(
+    group: BomGroup,
+    kerf_mm: float,
+    algorithm: Literal["greedy", "exact"] = "greedy",
+    time_budget_s: float = 0.0,
+) -> GroupCuttingResult:
+    """Packa mot group.available_trade_lengths_mm, kerf_mm avdrag per snitt.
+
+    algorithm="greedy" (default, docs/adr.md ADR-2): girig First-Fit-Decreasing, alltid
+    optimal=True (gör inget optimalitetsanspråk men har heller ingen tidsgräns att missa).
+    algorithm="exact" (ADR-2-tillägget): OR-Tools CP-SAT med time_budget_s per grupp --
+    optimal=True bara om lösaren bevisade optimalitet inom tidsgränsen.
 
     Behov längre än längsta handelslängden skarvas (docs/prd.md §0/§3.3) istället för att
-    packas -- se _splice_piece.
+    packas, oavsett algorithm -- se _splice_piece.
 
     Kontroll (docs/plan.md #3): för en given grupp balanserar materialet, dvs.
     sum(cuts.length_mm) + kerf_total_mm + waste_mm == used_length_mm <= purchase_length_mm
@@ -130,7 +217,13 @@ def optimize_group(group: BomGroup, kerf_mm: float) -> GroupCuttingResult:
     normal_pieces = [p for p in group.pieces if p.length_mm <= max_trade]
     long_pieces = [p for p in group.pieces if p.length_mm > max_trade]
 
-    bars = _pack_ffd(normal_pieces, trade_lengths_asc, kerf_mm)
+    start = time.perf_counter()
+    if algorithm == "exact":
+        bars, optimal = _solve_exact(normal_pieces, trade_lengths_asc, kerf_mm, time_budget_s)
+    else:
+        bars = _pack_ffd(normal_pieces, trade_lengths_asc, kerf_mm)
+        optimal = True
+    solve_time_ms = (time.perf_counter() - start) * 1000
 
     splices: list[Splice] = []
     for piece in long_pieces:
@@ -146,6 +239,9 @@ def optimize_group(group: BomGroup, kerf_mm: float) -> GroupCuttingResult:
         code=group.code,
         mat_code=group.mat_code,
         waste_percent=waste_percent,
+        algorithm=algorithm,
+        optimal=optimal,
+        solve_time_ms=round(solve_time_ms, 2),
         bars=bars,
         splices=splices,
     )

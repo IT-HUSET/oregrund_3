@@ -21,10 +21,16 @@ nästa — om tiden tar slut efter inkrement 3 finns fortfarande ett komplett, d
 
 ## Tillägg efter demot: valbar exakt optimeringsalgoritm
 
-`prd.md` §3.6 / `adr.md` ADR-2-tillägget (2026-09-18): utöver girig FFD i inkrement 3 ska
-användaren kunna välja en exakt lösare (OR-Tools CP-SAT) via `algorithm=exact` på
+`prd.md` §3.6 / `adr.md` ADR-2-tillägget (2026-09-18): utöver girig FFD i inkrement 3 kan
+användaren välja en exakt lösare (OR-Tools CP-SAT) via `algorithm=exact` på
 `GET /api/purchase-order`. Bygger ovanpå inkrement 3 (samma grupper, samma kontrakt plus nya
-fält), rör inte inkrement 1/2/4. Status: specificerat i `api-contract.md`, inte implementerat —
-spike med uppmätta spilltal finns på branchen `spike/exact-cutting-optimizer`
-(`backend/spikes/exact_cutting_spike.py`). Girig FFD förblir standardläget; inkrement 3:s
-befintliga kontrollrad ovan gäller oförändrad för det.
+fält), rör inte inkrement 1/2/4. Status: backend klart (`app/services/cutting_optimizer.py`
+`_solve_exact`, `docs/api-contract.md`), frontend-UI för att trigga/visa det saknas ännu.
+Ursprungligt spike med de uppmätta spilltalen finns kvar på branchen
+`spike/exact-cutting-optimizer` (`backend/spikes/exact_cutting_spike.py`) som referens. Girig FFD
+förblir standardläget; inkrement 3:s befintliga kontrollrad ovan gäller oförändrad för det.
+
+**Kontroll (nytt):** `GET /api/purchase-order?algorithm=exact` → 200, `algorithm == "exact"` i
+svaret; varje grupp balanserar materialet precis som för `greedy` (samma invariant som
+inkrement 3:s kontrollrad); `groups[].optimal` är `false` för grupper där lösaren inte hann
+bevisa optimalitet inom tidsgränsen (t.ex. de större grupperna, se ADR-2-tillägget).

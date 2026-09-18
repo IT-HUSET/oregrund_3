@@ -94,10 +94,22 @@ export interface Splice {
   joint_count: number
 }
 
+/** greedy = girig FFD (default, docs/adr.md ADR-2), exact = OR-Tools CP-SAT (ADR-2-tillägget). */
+export type OptimizationAlgorithm = 'greedy' | 'exact'
+
 export interface GroupCuttingResult {
   code: string
   mat_code: string
   waste_percent: number
+  /** Vilket läge gruppen kördes med. */
+  algorithm: OptimizationAlgorithm
+  /**
+   * True om lösningen är bevisat optimal (alltid true för greedy; för exact bara true om
+   * CP-SAT löste till bevisad optimalitet inom tidsgränsen, annars "bästa hittade").
+   */
+  optimal: boolean
+  /** Lösningstid för gruppen, ms (greedy ~0, exact kan vara sekunder). */
+  solve_time_ms: number
   bars: Bar[]
   /** En rad per skarvat oid i gruppen. */
   splices: Splice[]
@@ -128,6 +140,8 @@ export interface PurchaseOrderSummary {
 
 export interface PurchaseOrderResponse {
   kerf_mm: number
+  /** Ekar tillbaka query-parametern ?algorithm= (docs/adr.md ADR-2-tillägget). */
+  algorithm: OptimizationAlgorithm
   groups: GroupCuttingResult[]
   order_lines: PurchaseOrderLine[]
   summary: PurchaseOrderSummary

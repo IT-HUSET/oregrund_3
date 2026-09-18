@@ -99,12 +99,8 @@ handelslängderna 1800–5400 mm.
 Inkrement 3 (kapoptimering + spillrapport + inköpsunderlag) och grunden för inkrement 4
 (`oid` följer med hela vägen ner i `bars[].cuts[]`).
 
-**Status: specifikation, ej implementerad ännu.** Query-parametern `algorithm` och fälten
-`algorithm`/`optimal`/`solve_time_ms` nedan beskriver kontraktet för kärnkrav 6
-(`docs/prd.md` §3.6, `docs/adr.md` ADR-2-tillägget) men är inte kopplade i
-`backend/app/models.py`/`backend/app/routers/purchase_order.py` än — endast girig FFD (utan
-dessa fält) svarar just nu. Uppdatera `backend/app/models.py` och
-`frontend/src/api/types.ts` i samma commit som implementationen, enligt "Ändra kontraktet" nedan.
+Query-parametern `algorithm` och fälten `algorithm`/`optimal`/`solve_time_ms` nedan implementerar
+kärnkrav 6 (`docs/prd.md` §3.6, `docs/adr.md` ADR-2-tillägget).
 
 **Query-parameter:** `algorithm` (valfri, sträng): `"greedy"` (default, oförändrat beteende) |
 `"exact"`. Vid `"exact"` körs OR-Tools CP-SAT per grupp med en tidsgräns
@@ -215,8 +211,7 @@ körs vid vanlig sidladdning.
 - `summary.spliced_piece_count` / `summary.total_joints` — aggregat för hela inköpsunderlaget,
   till spillrapporten.
 
-**Nya fält (valbar exakt lösare, `docs/prd.md` §3.6, `docs/adr.md` ADR-2-tillägget — ej
-implementerat ännu, se statusnoteringen ovan):**
+**Nya fält (valbar exakt lösare, `docs/prd.md` §3.6, `docs/adr.md` ADR-2-tillägget):**
 - Toppnivå `algorithm` — vilket läge svaret faktiskt kördes med (`"greedy"` | `"exact"`), ekar
   tillbaka query-parametern.
 - `groups[].algorithm` — samma värde per grupp (alla grupper körs med samma läge i en och samma

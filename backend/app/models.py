@@ -7,6 +7,8 @@ frontend/src/api/types.ts i samma commit.
 FastAPI genererar interaktiv dokumentation av dessa scheman på /docs och /openapi.json.
 """
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -118,6 +120,17 @@ class GroupCuttingResult(BaseModel):
     code: str
     mat_code: str
     waste_percent: float
+    algorithm: Literal["greedy", "exact"] = Field(
+        "greedy", description="Vilket läge gruppen kördes med, se docs/adr.md ADR-2-tillägget."
+    )
+    optimal: bool = Field(
+        True,
+        description=(
+            "True om lösningen är bevisat optimal (alltid True för greedy; för exact bara True "
+            "om CP-SAT löste till bevisad optimalitet inom tidsgränsen, annars 'bästa hittade')."
+        ),
+    )
+    solve_time_ms: float = Field(0.0, description="Lösningstid för gruppen, ms.")
     bars: list[Bar]
     splices: list[Splice] = Field(
         default_factory=list, description="En rad per skarvat oid i gruppen."
@@ -149,6 +162,9 @@ class PurchaseOrderSummary(BaseModel):
 
 class PurchaseOrderResponse(BaseModel):
     kerf_mm: float
+    algorithm: Literal["greedy", "exact"] = Field(
+        "greedy", description="Ekar tillbaka query-parametern ?algorithm= (docs/adr.md ADR-2-tillägget)."
+    )
     groups: list[GroupCuttingResult]
     order_lines: list[PurchaseOrderLine]
     summary: PurchaseOrderSummary

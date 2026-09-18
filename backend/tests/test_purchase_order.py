@@ -55,6 +55,38 @@ def test_spliced_segments_sum_to_piece_length(client):
             assert len(splice["purchase_lengths_mm"]) == splice["segment_count"]
 
 
+def test_purchase_order_defaults_to_greedy_algorithm(client):
+    body = client.get("/api/purchase-order").json()
+    assert body["algorithm"] == "greedy"
+    assert all(g["algorithm"] == "greedy" and g["optimal"] is True for g in body["groups"])
+
+
+def test_purchase_order_rejects_unknown_algorithm(client):
+    response = client.get("/api/purchase-order", params={"algorithm": "bogus"})
+    assert response.status_code == 422
+
+
+def test_purchase_order_exact_algorithm_balances_material(client, monkeypatch):
+    """?algorithm=exact kör OR-Tools CP-SAT istället (docs/adr.md ADR-2-tillägget). Kort
+    tidsgräns här bara för att hålla testet snabbt -- materialbalansen ska hålla oavsett."""
+    monkeypatch.setattr("app.routers.purchase_order.EXACT_SOLVER_TIME_BUDGET_S", 0.2)
+
+    response = client.get("/api/purchase-order", params={"algorithm": "exact"})
+    assert response.status_code == 200
+    body = response.json()
+
+    assert body["algorithm"] == "exact"
+    for group in body["groups"]:
+        assert group["algorithm"] == "exact"
+        assert isinstance(group["optimal"], bool)
+        assert group["solve_time_ms"] >= 0
+
+        for bar in group["bars"]:
+            cuts_sum = sum(cut["length_mm"] for cut in bar["cuts"])
+            assert cuts_sum + bar["kerf_total_mm"] == pytest.approx(bar["used_length_mm"])
+            assert bar["used_length_mm"] <= bar["purchase_length_mm"]
+
+
 def test_splice_count_matches_bom_pieces_over_longest_trade_length(client):
     """Behov > längsta handelslängden (5400 mm, docs/prd.md §0) ska skarvas, inga andra."""
     bom_items = client.get("/api/bom").json()["items"]

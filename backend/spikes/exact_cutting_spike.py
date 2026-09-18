@@ -13,10 +13,13 @@ Skarvade bitar (> längsta handelslängden) lämnas orörda -- samma _splice_pie
 är bara den "normala" bin-packing-delen (girig FFD vs. exakt) som jämförs här, se ADR-2:s
 ursprungliga omfattning.
 
-Kräver ortools (backend/requirements-spike.txt), inte en del av backend/requirements.txt --
-lägg inte till det där utan att uppdatera docs/adr.md ADR-2 först (AGENTS.md).
+Detta var det ursprungliga spiket bakom ADR-2-tillägget (valbar exakt lösare). Den riktiga
+implementationen ligger nu i app/services/cutting_optimizer.py (_solve_exact) och nås via
+GET /api/purchase-order?algorithm=exact -- ortools är sedan dess ett riktigt beroende i
+backend/requirements.txt. Skriptet här lever kvar som ett fristående jämförelseverktyg.
 """
 
+import math
 import sys
 import time
 from pathlib import Path
@@ -50,7 +53,10 @@ def solve_exact(pieces, trade_lengths_asc, kerf_mm, time_limit_s):
     for i in range(n):
         model.Add(sum(assign[i][j] for j in range(max_bins)) == 1)
 
-    needed = [round(p.length_mm + kerf_mm) for p in pieces]
+    # Avrunda uppåt (inte till närmaste heltal), samma fix som i den riktiga
+    # _solve_exact i app/services/cutting_optimizer.py -- annars kan CP-SAT:s heltalsdomän
+    # tillåta en riktig (flyttals-)summa som faktiskt överstiger purchase_length_mm.
+    needed = [math.ceil(p.length_mm + kerf_mm) for p in pieces]
     for j in range(max_bins):
         model.Add(sum(needed[i] * assign[i][j] for i in range(n)) <= capacity[j])
 
