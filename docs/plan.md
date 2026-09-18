@@ -24,8 +24,10 @@ nästa — om tiden tar slut efter inkrement 3 finns fortfarande ett komplett, d
 `prd.md` §3.6 / `adr.md` ADR-2-tillägget (2026-09-18): utöver girig FFD i inkrement 3 kan
 användaren välja en exakt lösare (OR-Tools CP-SAT) via `algorithm=exact` på
 `GET /api/purchase-order`. Bygger ovanpå inkrement 3 (samma grupper, samma kontrakt plus nya
-fält), rör inte inkrement 1/2/4. Status: backend klart (`app/services/cutting_optimizer.py`
-`_solve_exact`, `docs/api-contract.md`), frontend-UI för att trigga/visa det saknas ännu.
+fält), rör inte inkrement 1/2/4. Status: **klart**. Backend i `app/services/cutting_optimizer.py`
+`_solve_exact`; frontend i `PurchaseOrderView` — knappen "Kör exakt optimering" med
+förloppsräknare, växling mellan de två resultaten när båda finns, jämförelserad (spill, antal
+stänger, kostnad) och per grupp "bevisat optimal" / "bästa hittade" med lösningstid.
 Ursprungligt spike med de uppmätta spilltalen finns kvar på branchen
 `spike/exact-cutting-optimizer` (`backend/spikes/exact_cutting_spike.py`) som referens. Girig FFD
 förblir standardläget; inkrement 3:s befintliga kontrollrad ovan gäller oförändrad för det.
@@ -34,3 +36,14 @@ förblir standardläget; inkrement 3:s befintliga kontrollrad ovan gäller oför
 svaret; varje grupp balanserar materialet precis som för `greedy` (samma invariant som
 inkrement 3:s kontrollrad); `groups[].optimal` är `false` för grupper där lösaren inte hann
 bevisa optimalitet inom tidsgränsen (t.ex. de större grupperna, se ADR-2-tillägget).
+**Klick:** öppna Inköpsunderlag, tryck "Kör exakt optimering", vänta ut räknaren, se
+jämförelseraden och växla tillbaka till girig FFD.
+
+**Två observationer från körningarna, att ha med sig på scen:**
+- Resultatet är **inte reproducerbart mellan körningar**. Två identiska anrop gav 3,74 % spill /
+  523 stänger respektive 5,09 % spill / 524 stänger. CP-SAT körs med wall-clock-tidsgräns
+  (`EXACT_SOLVER_TIME_BUDGET_S`) och 8 trådar, så vilken lösning som hinner hittas varierar.
+  Citera inte en exakt siffra i förväg — läs av den som står på skärmen.
+- Totalen blir bättre, men **enskilda grupper kan bli sämre än girig FFD**: `45x220 C24` gick från
+  6,38 % (girig) till 12,05 % (exakt) i samma körning där totalen förbättrades från 6,11 % till
+  5,09 %. Lösarens målfunktion är inte spillprocent per grupp.

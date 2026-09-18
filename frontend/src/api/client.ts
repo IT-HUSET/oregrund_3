@@ -1,4 +1,9 @@
-import type { BomGroupsResponse, BomResponse, PurchaseOrderResponse } from './types'
+import type {
+  BomGroupsResponse,
+  BomResponse,
+  OptimizationAlgorithm,
+  PurchaseOrderResponse,
+} from './types'
 
 /**
  * Tunn fetch-klient mot backend-API:et (se docs/api-contract.md). Vite-devservern proxyar
@@ -21,6 +26,12 @@ export function getBomGroups(): Promise<BomGroupsResponse> {
   return getJson('/api/bom/groups')
 }
 
-export function getPurchaseOrder(): Promise<PurchaseOrderResponse> {
-  return getJson('/api/purchase-order')
+/**
+ * `exact` tar sekunder till minuter (OR-Tools CP-SAT, docs/adr.md ADR-2-tillägget) och får bara
+ * anropas på explicit användarval -- aldrig vid vanlig sidladdning (docs/api-contract.md).
+ */
+export function getPurchaseOrder(
+  algorithm: OptimizationAlgorithm = 'greedy',
+): Promise<PurchaseOrderResponse> {
+  return getJson(`/api/purchase-order?algorithm=${algorithm}`)
 }
