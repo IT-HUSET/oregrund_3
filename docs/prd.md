@@ -36,6 +36,12 @@ nedladdad till **`./data`**:
 `FRAMEPIECE` i XML:en (t.ex. `Tag='589830'` ↔ `OID="589830"`). Det ger en verifierad,
 direkt koppling mellan varje kapbit i materiallistan och dess geometri i 3D-modellen.
 
+**Ytterligare fynd (upptäckt under uppbyggnad):** 43 av de 299 unika kaplängderna i
+`components.xml` överstiger 5400 mm — längsta handelslängden i
+`data/svensktra_standardlangder_mm.csv` — som mest ca 12,8 m. Sådana behov går inte att täcka
+med en enskild inköpt bit utan kräver skarvning av flera handelslängder. Se §3 och §4 för hur
+detta hanteras i scopet.
+
 **Konsekvens för scopet:**
 - Steg "AI-tolkning av ritning" görs om till **inläsning av redan digitaliserat
   konstruktionsunderlag** (parsning av Vertex BD-export). Detta är en ärlig och realistisk
@@ -75,9 +81,14 @@ matematisk optimering), och att resultatet kan verifieras visuellt mot 3D-modell
    mot ett artikelregister vars handelslängder är **riktig data** från
    `data/svensktra_standardlangder_mm.csv` (1800–5400 mm, 300 mm-steg). Endast pris,
    artikelnummer och leveranstid mockas — dessa finns inte öppet tillgängliga (se §4).
-3. **Kapoptimering (1D cutting stock).** Algoritm som packar kaplängder mot inköpslängder med
-   hänsyn till sågklingans snittbredd (kerf), och som minimerar spill. Ambitionsnivå får skalas
-   ned vid tidsbrist (se §6) — men algoritmen ska vara verklig, inte hårdkodad per demo-fil.
+3. **Kapoptimering (1D cutting stock), inklusive skarvning av överlånga behov.** Algoritm som
+   packar kaplängder mot inköpslängder med hänsyn till sågklingans snittbredd (kerf), och som
+   minimerar spill. För kapbehov som överstiger längsta handelslängden (5400 mm, se §0) tillåts
+   skarvning: flera inköpta längder summeras (minus kerf per snitt/skarv) tills de täcker
+   behovslängden. Sådana rader flaggas tydligt som **skarvade** genom hela kedjan (kaplista →
+   inköpsunderlag → export) — algoritmen optimerar ren materialtäckning och spill, den validerar
+   inte skarvens strukturella placering (se §4). Ambitionsnivå får skalas ned vid tidsbrist
+   (se §6) — men algoritmen ska vara verklig, inte hårdkodad per demo-fil.
 4. **Visuell 3D-spårbarhet.** Klick på en rad i kaplistan/inköpsunderlaget highlightar
    motsvarande element i en 3D-vy av `772_H811_new.ifc`, via OID↔Tag-kopplingen. Detta är
    projektets skarpaste krav — prioriteras vid resurskonflikt.
@@ -94,6 +105,12 @@ matematisk optimering), och att resultatet kan verifieras visuellt mot 3D-modell
   inte offentligt tillgängliga. Handelslängderna i registret är däremot riktig data (se §0).
 - **Icke-träbaserat material.** Endast regelvirke (`FRAMEPIECE`-poster) hanteras.
 - **Multi-projekt/multi-fil-stöd.** Demot körs mot exakt dessa två exempelfiler.
+- **Strukturell validering av skarvplacering.** Skarvade handelslängder väljs rent på
+  materialtäckning (summa ≥ behovslängd, minimerat spill/antal skarvar) — systemet kontrollerar
+  inte byggregler för var en skarv får sitta i en bärande regel (momentzoner, skarvavstånd till
+  knutpunkter etc.). Skarvade rader flaggas i underlaget för manuell konstruktörsgranskning,
+  precis som bildbaserad ritningstolkning (ovan) är en medveten, uttalad avgränsning — inte en
+  glömd detalj.
 
 ## 5. Vad vi visar kl. 18:00
 
@@ -103,7 +120,8 @@ matematisk optimering), och att resultatet kan verifieras visuellt mot 3D-modell
    Svenskt Träs verkliga standardlängder (`data/svensktra_standardlangder_mm.csv`) och mockade
    priser/artikelnummer.
 3. **Kapoptimering + spillrapport:** Kaplista per (tvärsnitt, klass) mot valda inköpslängder,
-   med kerf inräknat, och en spillrapport (%).
+   med kerf inräknat, och en spillrapport (%). Behov längre än 5400 mm visas som skarvade rader
+   (flera inköpslängder), tydligt märkta.
 4. **3D-spårbarhet:** `772_H811_new.ifc` visas i en enkel 3D-vy. Klick på en rad i
    kaplistan/inköpsunderlaget highlightar rätt element i modellen (via OID/Tag).
 5. **Inköpsunderlag:** Slutlig, granskningsbar tabell redo att exporteras/godkännas.
@@ -134,3 +152,5 @@ bin-packing till en enklare girig algoritm eller färre optimeringsvarianter. 3D
 | `.ifc`-filen (18 MB) är tung att ladda i webbläsare | Ladda/rendera i bakgrunden tidigt i demoflödet, undvik liveparsing på scen |
 | OID↔Tag-mappning saknas för vissa element (t.ex. plattor/`MISCCOMPONENT`) | Begränsa 3D-spårbarhet till `FRAMEPIECE`/`IFCBEAM`, där kopplingen är verifierad |
 | Kerf-/optimeringslogik hinner inte bli sofistikerad | Godtagbart för demo — en enkel, korrekt girig algoritm är trovärdig |
+| Skarvad bit tolkas nedströms (export, 3D-highlight) som en enda odelad handelslängd | Skarvade rader måste vara explicit märkta i datamodellen genom hela kedjan, inte bara i UI:t, så de inte kan förväxlas med en enskild bit |
+| Publiken (byggkunnig) ifrågasätter skarvens strukturella placering på scen | Var transparent: systemet löser materialtäckning, inte skarvregler — flaggat som medveten avgränsning i §4, likt AI-ritningstolkningen |

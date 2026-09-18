@@ -26,6 +26,11 @@ Frontend kan alltså byggas klart mot detta kontrakt redan nu.
 - Pris, artikelnummer och leveranstid är **mockade** (inte offentligt tillgänglig data, se
   `docs/prd.md` §4/§0) — handelslängderna är riktig data från
   `data/svensktra_standardlangder_mm.csv`.
+- **Skarvning:** 43 av 299 unika kaplängder i `components.xml` överstiger 5400 mm (längsta
+  handelslängden) och kräver att flera inköpta längder skarvas ihop (`docs/prd.md` §0/§3.3). Ett
+  sådant behov täcks av *flera* `cuts[]`-rader (en per köpt bit den är skarvad ur), markerade
+  `spliced: true`, i stället för en enda rad. Algoritmen optimerar bara materialtäckning/spill —
+  den validerar inte skarvens strukturella placering (`docs/prd.md` §4, medveten avgränsning).
 
 ---
 
@@ -111,6 +116,45 @@ Inkrement 3 (kapoptimering + spillrapport + inköpsunderlag) och grunden för in
           "used_length_mm": 3365.0,
           "kerf_total_mm": 6.0,
           "waste_mm": -371.0
+        },
+        {
+          "purchase_length_mm": 5400,
+          "cuts": [
+            {
+              "oid": "591200",
+              "length_mm": 5397.0,
+              "spliced": true,
+              "segment_index": 1,
+              "segment_count": 2
+            }
+          ],
+          "used_length_mm": 5400.0,
+          "kerf_total_mm": 3.0,
+          "waste_mm": 0.0
+        },
+        {
+          "purchase_length_mm": 4500,
+          "cuts": [
+            {
+              "oid": "591200",
+              "length_mm": 4328.0,
+              "spliced": true,
+              "segment_index": 2,
+              "segment_count": 2
+            }
+          ],
+          "used_length_mm": 4331.0,
+          "kerf_total_mm": 3.0,
+          "waste_mm": 169.0
+        }
+      ],
+      "splices": [
+        {
+          "oid": "591200",
+          "total_length_mm": 9725.0,
+          "segment_count": 2,
+          "purchase_lengths_mm": [5400, 4500],
+          "joint_count": 1
         }
       ]
     }
@@ -132,14 +176,31 @@ Inkrement 3 (kapoptimering + spillrapport + inköpsunderlag) och grunden för in
     "total_needed_length_mm": 612345.0,
     "total_purchased_length_mm": 654300.0,
     "total_waste_percent": 6.4,
-    "total_cost_sek": 452310.0
+    "total_cost_sek": 452310.0,
+    "spliced_piece_count": 43,
+    "total_joints": 46
   }
 }
 ```
 
+**Nya fält (skarvning):**
+- `cuts[].spliced` — `true` om denna rad bara är ett *segment* av en kapbit som behöver fler än
+  en inköpt längd (utelämnas/`false` för normala rader). `segment_index`/`segment_count` följer
+  med när `spliced` är sant (1-baserat, t.ex. 1/2 och 2/2 ovan).
+- `groups[].splices` — en rad per skarvat `oid` i gruppen: `total_length_mm` är kapbitens fulla
+  behovslängd (samma som i `/api/bom`), `purchase_lengths_mm` de inköpta längderna den byggs av,
+  `joint_count` antal skarvar (`segment_count - 1`). Ingen extra kerf modelleras för själva
+  skarven i det här demot — varje segments egen kerf är redan medräknad i dess bars
+  `kerf_total_mm`. Se `docs/prd.md` §3.3/§4: algoritmen validerar inte var skarven strukturellt
+  får sitta.
+- `summary.spliced_piece_count` / `summary.total_joints` — aggregat för hela inköpsunderlaget,
+  till spillrapporten.
+
 Kontroll (`docs/plan.md` #3): för en given grupp, `sum(cuts.length_mm) + kerf_total_mm + waste_mm
-== used_length_mm <= purchase_length_mm` (materialet balanserar). `oid` i `bars[].cuts[]` är
-samma `oid` som i `/api/bom`, vilket är vad inkrement 4 slår upp mot IFC `Tag`.
+== used_length_mm <= purchase_length_mm` (materialet balanserar) — gäller per bar oavsett
+`spliced`. `oid` i `bars[].cuts[]` är samma `oid` som i `/api/bom`, vilket är vad inkrement 4 slår
+upp mot IFC `Tag` (en skarvad kapbit highlightar alltså flera `bars[].cuts[]`-rader men ett enda
+element i 3D-vyn). För skarvade `oid`: `sum(cuts med detta oid.length_mm) == splices[].total_length_mm`.
 
 ---
 

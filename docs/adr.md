@@ -72,6 +72,14 @@ per snitt, exponera resultatet via `GET /api/purchase-order`.
 jämfört med en exakt lösare är förväntat och accepterat för en demo. Vinsten är att algoritmen är
 liten, deterministisk, snabb att köra live och enkel att förklara för publiken på scen.
 
+**Tillägg (skarvning):** Efter att fyndet i `prd.md` §0 gjordes — 43 av 299 unika kaplängder i
+`components.xml` överstiger 5400 mm (längsta handelslängden) — utökas algoritmen till att
+täcka ett behov med *flera* inköpta längder (skarv) när ingen enskild handelslängd räcker.
+Detta ändrar inte beslutet ovan (fortfarande girig FFD, inte ILP): för behov > 5400 mm summeras
+tillgängliga handelslängder girigt (störst först, minus kerf per snitt/skarv) tills täckning
+uppnås, och raden flaggas `spliced=true` i API-svaret. Algoritmen optimerar bara materialtäckning
+och spill — den validerar inte skarvens strukturella placering, se `prd.md` §3.3/§4.
+
 ### ADR-3: Etablerat open source-bibliotek för IFC-rendering (web-ifc / @thatopen/components) istället för egen parser
 
 **Läget:** Kravet på skarp 3D-spårbarhet (klick i tabell → highlight i 3D, via OID↔Tag-kopplingen,

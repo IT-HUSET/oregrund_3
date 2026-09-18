@@ -69,10 +69,22 @@ class BomGroupsResponse(BaseModel):
 
 
 class Cut(BaseModel):
-    """En kapbit skuren ur en inköpt stång. `oid` är nyckeln för 3D-highlight (inkrement 4)."""
+    """En kapbit skuren ur en inköpt stång. `oid` är nyckeln för 3D-highlight (inkrement 4).
+
+    Om kapbiten är längre än längsta handelslängden (docs/prd.md §0/§3.3) täcks den av flera
+    `Cut`-rader (en per inköpt stång den är skarvad ur) med `spliced=True` och
+    `segment_index`/`segment_count` satta — se `GroupCuttingResult.splices` för aggregatet.
+    """
 
     oid: str
     length_mm: float
+    spliced: bool = Field(False, description="True om detta bara är ett segment av kapbiten.")
+    segment_index: int | None = Field(
+        None, description="1-baserat segmentnummer, satt endast när spliced=True."
+    )
+    segment_count: int | None = Field(
+        None, description="Totalt antal segment kapbiten är byggd av, satt endast när spliced=True."
+    )
 
 
 class Bar(BaseModel):
@@ -85,11 +97,29 @@ class Bar(BaseModel):
     waste_mm: float = Field(..., description="purchase_length_mm - used_length_mm.")
 
 
+class Splice(BaseModel):
+    """Aggregat för en kapbit (`oid`) som är skarvad ur flera inköpta längder.
+
+    Validerar bara materialtäckning/spill, inte var skarven strukturellt får sitta
+    (docs/prd.md §4, medveten avgränsning). Ingen extra kerf modelleras för skarven själv —
+    varje segments kerf räknas redan i dess `Bar.kerf_total_mm`.
+    """
+
+    oid: str
+    total_length_mm: float = Field(..., description="Kapbitens fulla behovslängd, samma som i /api/bom.")
+    segment_count: int
+    purchase_lengths_mm: list[int] = Field(..., description="Inköpta längder biten byggs av.")
+    joint_count: int = Field(..., description="segment_count - 1.")
+
+
 class GroupCuttingResult(BaseModel):
     code: str
     mat_code: str
     waste_percent: float
     bars: list[Bar]
+    splices: list[Splice] = Field(
+        default_factory=list, description="En rad per skarvat oid i gruppen."
+    )
 
 
 class PurchaseOrderLine(BaseModel):
@@ -111,6 +141,8 @@ class PurchaseOrderSummary(BaseModel):
     total_purchased_length_mm: float
     total_waste_percent: float
     total_cost_sek: float
+    spliced_piece_count: int = Field(0, description="Antal oid som behövde skarvas.")
+    total_joints: int = Field(0, description="Summa joint_count över alla splices.")
 
 
 class PurchaseOrderResponse(BaseModel):
