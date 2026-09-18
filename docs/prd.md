@@ -94,6 +94,14 @@ matematisk optimering), och att resultatet kan verifieras visuellt mot 3D-modell
    projektets skarpaste krav — prioriteras vid resurskonflikt.
 5. **Granskningsbart inköpsunderlag + spillrapport.** Tabell med inköpslängder, antal, uppskattad
    kostnad och total spillprocent, exporterbar (CSV/PDF-liknande vy räcker för demo).
+6. **Valbar exakt optimeringsalgoritm (tillägg, efterarbete 2026-09-18).** Utöver girig FFD
+   (kärnkrav 3, `docs/adr.md` ADR-2) ska användaren kunna välja att köra en exakt lösare
+   (OR-Tools CP-SAT) för kapoptimeringen istället, för att se den verkliga spillskillnaden mot
+   girig FFD. Girig FFD förblir standard och oförändrad — det exakta läget är ett explicit,
+   användarinitierat val (inte automatiskt vid sidladdning), eftersom det tar sekunder till
+   minuter snarare än millisekunder och inte garanterat hittar en bevisat optimal lösning för de
+   större grupperna inom en demo-vänlig tidsgräns. Se `docs/adr.md` ADR-2 (tillägg) för uppmätta
+   siffror och `docs/api-contract.md` för kontraktet.
 
 ## 4. Vad som INTE ingår (Out of scope)
 

@@ -18,3 +18,13 @@ från 1, 3 kräver grupperingen från 2, 4 kräver `oid`-fältet som redan finns
 alla tidigare). Varje inkrement kan alltså visas för sig så fort det är klart, utan att vänta på
 nästa — om tiden tar slut efter inkrement 3 finns fortfarande ett komplett, demobart flöde utan
 3D-spårbarhet (se `adr.md` ADR-3 och `prd.md` §6 för fallback-ordning).
+
+## Tillägg efter demot: valbar exakt optimeringsalgoritm
+
+`prd.md` §3.6 / `adr.md` ADR-2-tillägget (2026-09-18): utöver girig FFD i inkrement 3 ska
+användaren kunna välja en exakt lösare (OR-Tools CP-SAT) via `algorithm=exact` på
+`GET /api/purchase-order`. Bygger ovanpå inkrement 3 (samma grupper, samma kontrakt plus nya
+fält), rör inte inkrement 1/2/4. Status: specificerat i `api-contract.md`, inte implementerat —
+spike med uppmätta spilltal finns på branchen `spike/exact-cutting-optimizer`
+(`backend/spikes/exact_cutting_spike.py`). Girig FFD förblir standardläget; inkrement 3:s
+befintliga kontrollrad ovan gäller oförändrad för det.

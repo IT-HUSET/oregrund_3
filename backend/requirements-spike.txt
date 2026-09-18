@@ -1,0 +1,5 @@
+-r requirements.txt
+
+# SPIKE-beroende, se spikes/exact_cutting_spike.py. Inte en del av produktions-
+# requirements.txt -- lägg inte till det där utan att uppdatera docs/adr.md ADR-2 först.
+ortools==9.15.6755
