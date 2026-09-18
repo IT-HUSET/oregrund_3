@@ -147,7 +147,6 @@ function GroupCuts({
       <table>
         <thead>
           <tr>
-            <th>Handelslängd nr</th>
             <th>Handelslängd (mm)</th>
             <th>Kapbitar (OID)</th>
             <th>Använt (mm)</th>
@@ -158,7 +157,6 @@ function GroupCuts({
         <tbody>
           {group.bars.map((bar, index) => (
             <tr key={index}>
-              <td className="num">{index + 1}</td>
               <td className="num">{mm.format(bar.purchase_length_mm)}</td>
               <td>
                 {bar.cuts.map((cut) => (
@@ -263,7 +261,6 @@ function exportCuttingList(data: PurchaseOrderResponse): void {
     [
       'Tvärsnitt',
       'Klass',
-      'Handelslängd nr',
       'Handelslängd (mm)',
       'OID',
       'Kaplängd (mm)',
@@ -276,12 +273,11 @@ function exportCuttingList(data: PurchaseOrderResponse): void {
   ]
 
   for (const group of data.groups) {
-    group.bars.forEach((bar, index) => {
+    group.bars.forEach((bar) => {
       for (const cut of bar.cuts) {
         rows.push([
           group.code,
           group.mat_code,
-          index + 1,
           bar.purchase_length_mm,
           cut.oid,
           cut.length_mm,
