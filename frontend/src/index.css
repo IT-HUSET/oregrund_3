@@ -1,8 +1,1 @@
-:root {
-  color-scheme: light dark;
-  font: 16px/1.4 system-ui, sans-serif;
-}
-
-body {
-  margin: 0;
-}
+/* Globala reset-/basregler ligger i App.css tillsammans med resten av demots stil. */

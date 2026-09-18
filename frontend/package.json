@@ -7,19 +7,29 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "sync-wasm": "node -e \"require('node:fs').copyFileSync(require.resolve('web-ifc/web-ifc.wasm'),'public/wasm/web-ifc.wasm')\"",
+    "predev": "node -e \"require('node:fs').mkdirSync('public/wasm',{recursive:true})\" && npm run sync-wasm",
+    "prebuild": "node -e \"require('node:fs').mkdirSync('public/wasm',{recursive:true})\" && npm run sync-wasm",
+    "verify:ifc": "node scripts/verify-ifc-mapping.mjs"
   },
   "dependencies": {
     "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react-dom": "^19.2.8",
+    "three": "^0.186.0",
+    "web-ifc": "^0.0.77"
   },
   "devDependencies": {
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
+    "@types/three": "^0.186.0",
     "@vitejs/plugin-react": "^6.1.1",
     "oxlint": "^1.81.0",
     "typescript": "~6.0.2",
     "vite": "^8.3.0"
+  },
+  "engines": {
+    "node": ">=20.19"
   }
 }

@@ -28,12 +28,16 @@ Frontend (`frontend/`):
 npm run dev          # http://localhost:5173, proxyar /api mot backend
 ```
 
+Frontend kräver **Node 20.19+** (Vite 8); på Node 18 kraschar bygget. Se `frontend/README.md`.
+
 Om `backend/`/`frontend/` inte finns än: det är dit koden ska, enligt skissen i `docs/adr.md`.
 Skapa inte en annan mappstruktur utan att uppdatera `adr.md` först.
 
 ## Testa
 
 - Backend: `pytest` i `backend/`
+- Frontend: `npm run build` (typkontroll), `npm run lint`, och `npm run verify:ifc` som
+  kontrollerar OID↔Tag-kopplingen mot den riktiga IFC-filen
 - Kontroll per inkrement: se kolumnen "Kontroll (test | klick)" i `docs/plan.md` — varje rad har
   både ett automattest och ett manuellt klicksteg. Ett inkrement räknas inte klart förrän båda är
   gjorda.

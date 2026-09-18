@@ -21,8 +21,8 @@ class FramePieceOut(BaseModel):
     oid: str = Field(..., description="FRAMEPIECE OID. Matchar IFCBEAM.Tag i .ifc-filen 1:1.")
     item_id: str | None = Field(None, description="Vertex BD ITEM_ID, t.ex. 'FD5'.")
     code: str = Field(..., description="Tvärsnittskod, t.ex. '45x182'.")
-    width_mm: int = Field(..., description="WIDTH, mm.")
-    height_mm: int = Field(..., description="HEIGHT, mm.")
+    width_mm: float = Field(..., description="WIDTH (tjocklek), mm. Float: 3 SHIMS-bitar har 9.76/9.78/17.55 mm.")
+    height_mm: float = Field(..., description="HEIGHT (bredd), mm.")
     length_mm: float = Field(..., description="Kaplängd, LENGTH, mm.")
     mat_code: str = Field(..., description="Hållfasthetsklass, t.ex. C24, C16, C14, GL.")
     module_name: str | None = Field(None, description="MODULE_NAME, modul-/rumsnummer.")
@@ -56,6 +56,13 @@ class BomGroup(BaseModel):
     pieces: list[GroupedPiece]
     available_trade_lengths_mm: list[int] = Field(
         ..., description="Handelslängder från data/svensktra_standardlangder_mm.csv."
+    )
+    excluded_reason: str | None = Field(
+        None,
+        description=(
+            "Satt om gruppen inte kapoptimeras (data/dataspec.md §5), t.ex. limträ som beställs "
+            "i hel längd eller kilar (SHIMS). None = gruppen ingår i kapoptimeringen."
+        ),
     )
 
 
@@ -135,6 +142,23 @@ class PurchaseOrderLine(BaseModel):
     total_price_sek: float
 
 
+class Baseline(BaseModel):
+    """Jämförelsebaslinje för spillrapporten (data/dataspec.md §7).
+
+    Baslinjen = så här hade det sett ut UTAN kapoptimering: varje kapbit köps i närmast längre
+    handelslängd, en bit per stång. Det är den manuella rutin optimeringen ersätter, så
+    besparingen nedan är demots faktiska nyckeltal (docs/prd.md §1).
+    """
+
+    total_bars: int = Field(..., description="En stång per kapbit.")
+    total_purchased_length_mm: float
+    total_waste_percent: float
+    total_cost_sek: float
+    saved_length_mm: float = Field(..., description="Baslinjens inköpta längd minus den optimerades.")
+    saved_cost_sek: float
+    saved_percent: float = Field(..., description="Besparing i procent av baslinjens inköpta längd.")
+
+
 class PurchaseOrderSummary(BaseModel):
     total_bars: int
     total_needed_length_mm: float
@@ -143,6 +167,9 @@ class PurchaseOrderSummary(BaseModel):
     total_cost_sek: float
     spliced_piece_count: int = Field(0, description="Antal oid som behövde skarvas.")
     total_joints: int = Field(0, description="Summa joint_count över alla splices.")
+    baseline: Baseline | None = Field(
+        None, description="Ooptimerad jämförelse: en handelslängd per kapbit (data/dataspec.md §7)."
+    )
 
 
 class PurchaseOrderResponse(BaseModel):

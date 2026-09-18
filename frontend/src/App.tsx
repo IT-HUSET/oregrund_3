@@ -7,6 +7,13 @@ import { PurchaseOrderView } from './components/PurchaseOrderView'
 const TABS = ['Materialbehov', 'Artikelmatchning', 'Inköpsunderlag'] as const
 type Tab = (typeof TABS)[number]
 
+/**
+ * Demoflödet i ordning (docs/prd.md §5): materialbehov -> artikelmatchning -> inköpsunderlag,
+ * med 3D-vyn alltid synlig bredvid.
+ *
+ * Flikarna renderas alla tre och döljs med CSS i stället för att monteras av/på: 3D-vyn ligger
+ * kvar och modellen (18 MB) laddas en enda gång (docs/prd.md §7).
+ */
 function App() {
   const [tab, setTab] = useState<Tab>('Materialbehov')
   const [selectedOid, setSelectedOid] = useState<string | null>(null)
@@ -14,23 +21,49 @@ function App() {
   return (
     <div className="app">
       <header>
-        <h1>Kaplista & inköpsunderlag</h1>
+        <div>
+          <h1>Kaplista &amp; inköpsunderlag</h1>
+          <p className="subtitle">
+            Lindbäcks Bygg, projekt 772_H811 — från konstruktionsunderlag till spilloptimerat
+            inköpsunderlag
+          </p>
+        </div>
         <nav>
           {TABS.map((t) => (
-            <button key={t} type="button" onClick={() => setTab(t)} disabled={t === tab}>
+            <button
+              key={t}
+              type="button"
+              onClick={() => setTab(t)}
+              className={t === tab ? 'tab tab-active' : 'tab'}
+            >
               {t}
             </button>
           ))}
         </nav>
       </header>
 
-      <main>
-        {tab === 'Materialbehov' && <BomTable />}
-        {tab === 'Artikelmatchning' && <BomGroupsView />}
-        {tab === 'Inköpsunderlag' && <PurchaseOrderView onSelectOid={setSelectedOid} />}
-      </main>
+      <div className="layout">
+        <main>
+          <div hidden={tab !== 'Materialbehov'}>
+            <BomTable onSelectOid={setSelectedOid} selectedOid={selectedOid} />
+          </div>
+          <div hidden={tab !== 'Artikelmatchning'}>
+            <BomGroupsView onSelectOid={setSelectedOid} selectedOid={selectedOid} />
+          </div>
+          <div hidden={tab !== 'Inköpsunderlag'}>
+            <PurchaseOrderView onSelectOid={setSelectedOid} selectedOid={selectedOid} />
+          </div>
+        </main>
 
-      <IfcViewer selectedOid={selectedOid} />
+        <aside>
+          <IfcViewer selectedOid={selectedOid} onPickOid={setSelectedOid} />
+          {selectedOid && (
+            <button type="button" className="clear" onClick={() => setSelectedOid(null)}>
+              Rensa markering (OID {selectedOid})
+            </button>
+          )}
+        </aside>
+      </div>
     </div>
   )
 }

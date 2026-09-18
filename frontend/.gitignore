@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Kopieras från node_modules/web-ifc av "npm run sync-wasm" (se package.json), inte källkod.
+public/wasm/

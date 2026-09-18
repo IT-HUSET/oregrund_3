@@ -9,15 +9,14 @@ Backend genererar dessutom interaktiv dokumentation automatiskt från `models.py
 `http://localhost:8000/docs` (Swagger UI) och `/openapi.json` — använd den för att verifiera
 exakta fältnamn/typer när du är osäker, den här filen är den läsbara sammanfattningen.
 
-**Status:** Boilerplate-läge. Alla tre endpoints svarar just nu med fixture-data
-(`backend/app/services/fixtures.py`) — riktiga värden (731 rader, full FFD-optimering) kopplas in
-per inkrement enligt `docs/plan.md`. Response-formen ändras inte när det sker, bara innehållet.
-Frontend kan alltså byggas klart mot detta kontrakt redan nu.
+**Status:** Implementerat. Alla endpoints svarar med riktig data ur `data/components.xml`
+(731 rader) och full FFD-kapoptimering — fixture-läget är borta. Två export-endpoints
+(`/api/purchase-order.csv`, `/api/cut-list.csv`) har tillkommit, se nedan.
 
 ## Gemensamt
 
-- Alla längder/mått i **mm** (float för längder som kan ha decimaler, int för tvärsnitt
-  bredd/höjd).
+- Alla längder/mått i **mm**, som float. `width_mm`/`height_mm` är float (inte int): tre
+  SHIMS-bitar i `components.xml` har tjocklek 9,76 / 9,78 / 17,55 mm.
 - `oid` är strängen från `FRAMEPIECE OID` i `components.xml` — samma värde som `IFCBEAM.Tag` i
   `772_H811_new.ifc` (se `docs/prd.md` §0). Detta är nyckeln frontend använder för 3D-highlight
   (inkrement 4, `docs/adr.md` ADR-3) — backend öppnar aldrig `.ifc`-filen själv.
@@ -46,8 +45,8 @@ Inkrement 1. Alla `FRAMEPIECE`-poster ur `components.xml`, oparsat vidare.
       "oid": "589830",
       "item_id": "FD5",
       "code": "45x182",
-      "width_mm": 45,
-      "height_mm": 182,
+      "width_mm": 45.0,
+      "height_mm": 182.0,
       "length_mm": 255.0,
       "mat_code": "C24",
       "module_name": "131",
@@ -82,11 +81,16 @@ kapoptimeringen (inkrement 3) är klar, utan att hitta på nya krav (behovet st�
       "pieces": [
         { "oid": "589830", "length_mm": 255.0 }
       ],
-      "available_trade_lengths_mm": [1800, 2100, 2400, 2700, 3000, 3300, 3600, 3900, 4200, 4500, 4800, 5100, 5400]
+      "available_trade_lengths_mm": [1800, 2100, 2400, 2700, 3000, 3300, 3600, 3900, 4200, 4500, 4800, 5100, 5400],
+      "excluded_reason": null
     }
   ]
 }
 ```
+
+`excluded_reason` är satt (i stället för `null`) för grupper som inte kapoptimeras — limträ
+och kilar, se `data/dataspec.md` §5 och "Undantagna bitar" nedan. Frontend visar flaggan, den
+härleder aldrig regeln själv.
 
 Kontroll (`docs/plan.md` #2): gruppen `45x182`/`C24` har `piece_count == 72` och listar
 handelslängderna 1800–5400 mm.
@@ -172,13 +176,22 @@ Inkrement 3 (kapoptimering + spillrapport + inköpsunderlag) och grunden för in
     }
   ],
   "summary": {
-    "total_bars": 210,
-    "total_needed_length_mm": 612345.0,
-    "total_purchased_length_mm": 654300.0,
-    "total_waste_percent": 6.4,
-    "total_cost_sek": 452310.0,
-    "spliced_piece_count": 43,
-    "total_joints": 46
+    "total_bars": 525,
+    "total_needed_length_mm": 1865037.7,
+    "total_purchased_length_mm": 1940700.0,
+    "total_waste_percent": 3.9,
+    "total_cost_sek": 71764.8,
+    "spliced_piece_count": 50,
+    "total_joints": 50,
+    "baseline": {
+      "total_bars": 774,
+      "total_purchased_length_mm": 2199600.0,
+      "total_waste_percent": 15.21,
+      "total_cost_sek": 81313.2,
+      "saved_length_mm": 258900.0,
+      "saved_cost_sek": 9548.4,
+      "saved_percent": 11.77
+    }
   }
 }
 ```
@@ -195,6 +208,35 @@ Inkrement 3 (kapoptimering + spillrapport + inköpsunderlag) och grunden för in
   får sitta.
 - `summary.spliced_piece_count` / `summary.total_joints` — aggregat för hela inköpsunderlaget,
   till spillrapporten.
+- `summary.baseline` — den **ooptimerade** jämförelsen som spillrapporten mäts mot
+  (`data/dataspec.md` §7): varje kapbit köpt i närmast längre handelslängd, en bit per stång.
+  `saved_*` är skillnaden mot det optimerade resultatet. Fältet är `null` bara om underlaget är
+  tomt.
+
+## Undantagna bitar
+
+`/api/bom` och `/api/bom/groups` innehåller **alla** 731 `FRAMEPIECE`. Kapoptimeringen i
+`/api/purchase-order` hoppar däremot över 7 av dem enligt `data/dataspec.md` §5: 4 limträbitar
+(`MAT_CODE = GL`, beställs i hel längd) och 3 kilar (`USE = SHIMS`). De syns alltså i
+materialbehovet men har inga `cuts[]`-rader.
+
+---
+
+## `GET /api/purchase-order.csv` och `GET /api/cut-list.csv`
+
+Inkrement 3, exportvyn (`docs/prd.md` §3.5). Samma siffror som JSON-svaret — exporten
+formaterar bara om dem, den räknar aldrig om något.
+
+- **`/api/purchase-order.csv`** — en rad per inköpsartikel plus en summeringssektion med
+  spillrapporten (spill %, kostnad, antal skarvade bitar, kerf).
+- **`/api/cut-list.csv`** — en rad per kapbit: stång-id (numrerat per grupp från `#001`, samma
+  etikett som UI:t visar), tvärsnitt, handelslängd, position i
+  stången, `OID`, `ITEM_ID`, kaplängd, modul, rum och funktion. Kolumnen **`Skarv`** är tom för
+  en vanlig bit och `"2 av 3"` för ett skarvsegment, så en skarvad rad aldrig kan läsas som en
+  odelad längd vid sågen (`docs/prd.md` §7).
+
+Båda använder `;` som separator, decimalkomma och inleds med UTF-8 BOM — annars avkodar Excel
+på Windows filen med ANSI-kodsidan och åäö blir mojibake.
 
 Kontroll (`docs/plan.md` #3): för en given grupp, `sum(cuts.length_mm) + kerf_total_mm + waste_mm
 == used_length_mm <= purchase_length_mm` (materialet balanserar) — gäller per bar oavsett

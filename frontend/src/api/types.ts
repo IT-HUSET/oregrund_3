@@ -16,7 +16,9 @@ export interface FramePiece {
   item_id: string | null
   /** Tvärsnittskod, t.ex. "45x182". */
   code: string
+  /** WIDTH (tjocklek), mm. Float: 3 SHIMS-bitar har 9.76/9.78/17.55 mm. */
   width_mm: number
+  /** HEIGHT (bredd), mm. */
   height_mm: number
   length_mm: number
   /** Hållfasthetsklass, t.ex. C24, C16, C14, GL. */
@@ -46,6 +48,11 @@ export interface BomGroup {
   total_length_mm: number
   pieces: GroupedPiece[]
   available_trade_lengths_mm: number[]
+  /**
+   * Satt om gruppen inte kapoptimeras (data/dataspec.md §5), t.ex. limträ eller kilar.
+   * null = gruppen ingår i kapoptimeringen. Kommer från backend — härled aldrig regeln här.
+   */
+  excluded_reason: string | null
 }
 
 export interface BomGroupsResponse {
@@ -114,6 +121,20 @@ export interface PurchaseOrderLine {
   total_price_sek: number
 }
 
+/**
+ * Jämförelsebaslinje för spillrapporten (data/dataspec.md §7): så här hade det sett ut UTAN
+ * kapoptimering -- varje kapbit köpt i närmast längre handelslängd, en bit per stång.
+ */
+export interface Baseline {
+  total_bars: number
+  total_purchased_length_mm: number
+  total_waste_percent: number
+  total_cost_sek: number
+  saved_length_mm: number
+  saved_cost_sek: number
+  saved_percent: number
+}
+
 export interface PurchaseOrderSummary {
   total_bars: number
   total_needed_length_mm: number
@@ -124,6 +145,8 @@ export interface PurchaseOrderSummary {
   spliced_piece_count: number
   /** Summa joint_count över alla splices. */
   total_joints: number
+  /** Ooptimerad jämförelse: en handelslängd per kapbit. */
+  baseline: Baseline | null
 }
 
 export interface PurchaseOrderResponse {
