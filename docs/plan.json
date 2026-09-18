@@ -66,7 +66,7 @@
       "dependsOn": ["S01"],
       "parallel": false,
       "risk": "low",
-      "status": "in-progress",
+      "status": "done",
       "fis": null,
       "owner": null,
       "scope": "Backend grupperar BOM-raderna per (code, mat_code) och matchar mot riktiga handelslängder ur data/svensktra_standardlangder_mm.csv (aldrig hårdkodade), exponerat via GET /api/bom/groups (docs/api-contract.md). Frontend visar en grupperad vy: grupp, antal behövda bitar, tillgängliga handelslängder. Ingen kapoptimering eller spillberäkning i denna story - bara gruppering och matchning.",

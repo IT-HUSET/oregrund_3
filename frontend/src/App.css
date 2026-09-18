@@ -46,3 +46,52 @@ td.num {
   align-items: baseline;
   gap: 0.5rem;
 }
+
+/* Grupprad i artikelmatchningen. display:flex tar bort webbläsarens egen triangel,
+   så den ritas om i ::before nedan. */
+details > summary {
+  display: flex;
+  gap: 1rem;
+  align-items: baseline;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid #eee;
+  cursor: pointer;
+  list-style: none;
+  color: #555;
+}
+
+details > summary::-webkit-details-marker {
+  display: none;
+}
+
+details > summary::before {
+  content: '▸';
+  width: 1em;
+}
+
+details[open] > summary::before {
+  content: '▾';
+}
+
+details > summary span {
+  min-width: 7rem;
+}
+
+/* Dra in det utfällda innehållet så det hör ihop med sin grupprad. */
+details > :not(summary) {
+  margin-left: 2rem;
+}
+
+.group-name {
+  font-weight: 600;
+  color: inherit;
+  min-width: 11rem;
+}
+
+.flag {
+  color: #8a4b00;
+  background: #fdf1e0;
+  padding: 0.05rem 0.4rem;
+  border-radius: 3px;
+  font-size: 0.85rem;
+}

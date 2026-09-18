@@ -2,11 +2,9 @@ import { useMemo, useState } from 'react'
 import { getBom } from '../api/client'
 import { useFetch } from '../api/useFetch'
 import type { FramePiece } from '../api/types'
+import { meters, mm } from '../format'
 
 const ALL_CODES = 'Alla'
-
-const mm = new Intl.NumberFormat('sv-SE', { maximumFractionDigits: 1 })
-const meters = new Intl.NumberFormat('sv-SE', { maximumFractionDigits: 0 })
 
 interface BomSummary {
   codes: string[]
