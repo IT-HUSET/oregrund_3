@@ -58,6 +58,15 @@ export interface Cut {
   /** Samma oid som i FramePiece.oid -- vad inkrement 4 slår upp mot IFC Tag. */
   oid: string
   length_mm: number
+  /**
+   * True om detta bara är ett segment av en kapbit som är längre än längsta handelslängden
+   * (5400 mm) och därför skarvas ur flera inköpta stänger. Se GroupCuttingResult.splices.
+   */
+  spliced?: boolean
+  /** 1-baserat segmentnummer, satt endast när spliced är true. */
+  segment_index?: number | null
+  /** Totalt antal segment kapbiten är byggd av, satt endast när spliced är true. */
+  segment_count?: number | null
 }
 
 export interface Bar {
@@ -68,11 +77,30 @@ export interface Bar {
   waste_mm: number
 }
 
+/**
+ * Aggregat för en kapbit (oid) som är skarvad ur flera inköpta längder. Validerar bara
+ * materialtäckning/spill, inte var skarven strukturellt får sitta (docs/prd.md §4, medveten
+ * avgränsning). Ingen extra kerf modelleras för skarven själv -- varje segments kerf räknas
+ * redan i dess Bar.kerf_total_mm.
+ */
+export interface Splice {
+  oid: string
+  /** Kapbitens fulla behovslängd, samma som i FramePiece.length_mm. */
+  total_length_mm: number
+  segment_count: number
+  /** Inköpta längder biten byggs av. */
+  purchase_lengths_mm: number[]
+  /** segment_count - 1. */
+  joint_count: number
+}
+
 export interface GroupCuttingResult {
   code: string
   mat_code: string
   waste_percent: number
   bars: Bar[]
+  /** En rad per skarvat oid i gruppen. */
+  splices: Splice[]
 }
 
 export interface PurchaseOrderLine {
@@ -92,6 +120,10 @@ export interface PurchaseOrderSummary {
   total_purchased_length_mm: number
   total_waste_percent: number
   total_cost_sek: number
+  /** Antal oid som behövde skarvas. */
+  spliced_piece_count: number
+  /** Summa joint_count över alla splices. */
+  total_joints: number
 }
 
 export interface PurchaseOrderResponse {
