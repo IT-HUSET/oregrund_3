@@ -17,7 +17,8 @@ Frontend kan alltså byggas klart mot detta kontrakt redan nu.
 ## Gemensamt
 
 - Alla längder/mått i **mm** (float för längder som kan ha decimaler, int för tvärsnitt
-  bredd/höjd).
+  bredd/höjd — utom `width_mm`, som är float: tre `SHIMS`-poster (`MAT_CODE=C14`) har en
+  decimal `WIDTH`, t.ex. `9.76252`).
 - `oid` är strängen från `FRAMEPIECE OID` i `components.xml` — samma värde som `IFCBEAM.Tag` i
   `772_H811_new.ifc` (se `docs/prd.md` §0). Detta är nyckeln frontend använder för 3D-highlight
   (inkrement 4, `docs/adr.md` ADR-3) — backend öppnar aldrig `.ifc`-filen själv.

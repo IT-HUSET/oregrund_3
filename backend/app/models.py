@@ -21,7 +21,9 @@ class FramePieceOut(BaseModel):
     oid: str = Field(..., description="FRAMEPIECE OID. Matchar IFCBEAM.Tag i .ifc-filen 1:1.")
     item_id: str | None = Field(None, description="Vertex BD ITEM_ID, t.ex. 'FD5'.")
     code: str = Field(..., description="Tvärsnittskod, t.ex. '45x182'.")
-    width_mm: int = Field(..., description="WIDTH, mm.")
+    width_mm: float = Field(
+        ..., description="WIDTH, mm. Oftast heltal, men enstaka SHIMS-poster (MAT_CODE=C14) har decimaler."
+    )
     height_mm: int = Field(..., description="HEIGHT, mm.")
     length_mm: float = Field(..., description="Kaplängd, LENGTH, mm.")
     mat_code: str = Field(..., description="Hållfasthetsklass, t.ex. C24, C16, C14, GL.")

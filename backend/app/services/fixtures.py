@@ -1,8 +1,10 @@
 """Fixture-/mockdata för boilerplate-läget.
 
-Allt härifrån ersätts av app/services/{xml_parser,article_matching,cutting_optimizer}.py när
-respektive inkrement (docs/plan.md) är klart — routrarna i app/routers/ importerar bara härifrån
-tills dess, så svarsformen är redan den riktiga (docs/api-contract.md) fast med en handfull rader.
+/api/bom är kopplat till den riktiga app/services/xml_parser.py (inkrement 1) och använder inte
+längre FRAME_PIECES/get_bom_response härifrån. Resten (bom/groups, purchase-order) ersätts av
+app/services/{article_matching,cutting_optimizer}.py när respektive inkrement (docs/plan.md) är
+klart — routrarna i app/routers/ importerar bara härifrån tills dess, så svarsformen är redan den
+riktiga (docs/api-contract.md) fast med en handfull rader.
 
 Raderna nedan är INTE hittepå: de är kopierade rakt av ur riktiga <FRAMEPIECE>-poster i
 data/components.xml (bl.a. OID 589830/589831/589832, samma OID som nämns i docs/prd.md §0 och
@@ -15,7 +17,6 @@ from app.models import (
     Bar,
     BomGroup,
     BomGroupsResponse,
-    BomResponse,
     Cut,
     FramePieceOut,
     GroupCuttingResult,
@@ -84,11 +85,6 @@ FRAME_PIECES: list[FramePieceOut] = [
         use="KORSREGEL", bom_phase="1. Floor",
     ),
 ]
-
-
-def get_bom_response() -> BomResponse:
-    """OBS: count speglar fixture-listan (10), inte de riktiga 731 -- se docs/plan.md #1."""
-    return BomResponse(count=len(FRAME_PIECES), items=FRAME_PIECES)
 
 
 def _group_key(p: FramePieceOut) -> tuple[str, str]:
