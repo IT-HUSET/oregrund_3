@@ -77,6 +77,11 @@ details > summary span {
   min-width: 7rem;
 }
 
+/* Markeringen ska vara lika bred som sin text, inte en kolumn. */
+details > summary .flag {
+  min-width: 0;
+}
+
 /* Dra in det utfällda innehållet så det hör ihop med sin grupprad. */
 details > :not(summary) {
   margin-left: 2rem;
@@ -94,4 +99,20 @@ details > :not(summary) {
   padding: 0.05rem 0.4rem;
   border-radius: 3px;
   font-size: 0.85rem;
+}
+
+/* Kapbit i kaplistan. Klickbar redan nu -- inkrement 4 hänger highlight i 3D på samma oid. */
+button.cut {
+  font: inherit;
+  font-size: 0.85rem;
+  margin: 0.1rem 0.3rem 0.1rem 0;
+  padding: 0.05rem 0.4rem;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  background: #fafafa;
+  cursor: pointer;
+}
+
+button.cut.flag {
+  border-color: #e0c08a;
 }

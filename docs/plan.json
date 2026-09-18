@@ -88,7 +88,7 @@
       "dependsOn": ["S02"],
       "parallel": false,
       "risk": "medium",
-      "status": "in-progress",
+      "status": "done",
       "fis": null,
       "owner": null,
       "scope": "Backend kör girig First-Fit-Decreasing-kapoptimering per grupp (docs/adr.md ADR-2) med kerf-avdrag (KERF_MM, backend/app/config.py), inkl. skarvning av behov > 5400 mm över flera inköpta längder (spliced=true, segment_index/segment_count, groups[].splices[]). Returnerar kaplista, inköpsunderlag (mockat pris/artikelnr/leveranstid) och spillrapport via GET /api/purchase-order (docs/api-contract.md, fullständigt exempel inkl. skarvfält). Frontend visar kaplista, total spillprocent, exportknapp (CSV). Byt inte algoritmen mot en exakt ILP-lösare - beslutet är låst i ADR-2.",
